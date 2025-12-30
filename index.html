@@ -423,7 +423,7 @@
             // Uses trapezoidal velocity profile starting from rest
             const simulateTime = (a, v_target) => {
                 // Safety check: ensure acceleration is positive
-                if (a <= 0) return Infinity; // Invalid acceleration
+                if (a <= 0) return Infinity; // Invalid: zero or negative acceleration
                 
                 const v_limit_vol = calculations.volumetricMaxSpeed;
                 const v_reach = Math.sqrt(2 * a * (analysisLength / 2));
