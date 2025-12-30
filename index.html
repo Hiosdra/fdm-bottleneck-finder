@@ -16,6 +16,10 @@
 
     <style>
         /* Custom styles for range input to match the React look roughly */
+        :root {
+            --color-primary: #a78bfa;
+            --color-track: #475569;
+        }
         input[type=range] {
             -webkit-appearance: none; 
             background: transparent; 
@@ -25,7 +29,7 @@
             height: 16px;
             width: 16px;
             border-radius: 50%;
-            background: #a78bfa;
+            background: var(--color-primary);
             margin-top: -6px;
             cursor: pointer;
         }
@@ -33,7 +37,7 @@
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: #475569;
+            background: var(--color-track);
             border-radius: 2px;
         }
         .gauge-circle {
@@ -152,6 +156,25 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
+        // --- Theme Colors ---
+        const THEME_COLORS = {
+            // Primary colors
+            primary: '#a78bfa',      // purple-400
+            primaryLight: '#c4b5fd', // purple-300
+            secondary: '#10b981',    // green-500
+            secondaryLight: '#6ee7b7', // green-400
+            accent: '#fb923c',       // orange-400
+            
+            // Chart colors
+            chartLimit: '#ef4444',   // red-500
+            chartTravel: '#94a3b8',  // slate-400
+            
+            // Status colors
+            warning: '#f59e0b',      // amber-500
+            danger: '#ef4444',       // red-500
+            success: '#10b981'       // green-500
+        };
+
         // --- Configuration & Defaults ---
         const defaultState = {
             config: {
@@ -639,11 +662,11 @@
                 chartInstance.data = {
                     labels,
                     datasets: [
-                        { label: 'Flow Limit', data: limitData, borderColor: 'red', borderDash: [5, 5], borderWidth: 1, pointRadius: 0, fill: false },
-                        { label: 'Infill', data: data.map(d => d.infill.speed), borderColor: '#a78bfa', borderWidth: 2 },
-                        { label: 'Wall', data: data.map(d => d.wall.speed), borderColor: '#10b981', borderWidth: 2 },
-                        { label: 'Top', data: data.map(d => d.top.speed), borderColor: '#fb923c', borderWidth: 2 },
-                        { label: 'Travel', data: data.map(d => d.travel.speed), borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5] }
+                        { label: 'Flow Limit', data: limitData, borderColor: THEME_COLORS.chartLimit, borderDash: [5, 5], borderWidth: 1, pointRadius: 0, fill: false },
+                        { label: 'Infill', data: data.map(d => d.infill.speed), borderColor: THEME_COLORS.primary, borderWidth: 2 },
+                        { label: 'Wall', data: data.map(d => d.wall.speed), borderColor: THEME_COLORS.secondary, borderWidth: 2 },
+                        { label: 'Top', data: data.map(d => d.top.speed), borderColor: THEME_COLORS.accent, borderWidth: 2 },
+                        { label: 'Travel', data: data.map(d => d.travel.speed), borderColor: THEME_COLORS.chartTravel, borderWidth: 2, borderDash: [5, 5] }
                     ]
                 };
             } else {
@@ -652,9 +675,9 @@
                 chartInstance.data = {
                     labels,
                     datasets: [
-                        { label: 'Max Flow', data: limitData, borderColor: 'red', borderDash: [5, 5], borderWidth: 1, pointRadius: 0 },
-                        { label: 'Infill Flow', data: data.map(d => d.infillFlow), borderColor: '#a78bfa', borderWidth: 2 },
-                        { label: 'Wall Flow', data: data.map(d => d.wallFlow), borderColor: '#10b981', borderWidth: 2 }
+                        { label: 'Max Flow', data: limitData, borderColor: THEME_COLORS.chartLimit, borderDash: [5, 5], borderWidth: 1, pointRadius: 0 },
+                        { label: 'Infill Flow', data: data.map(d => d.infillFlow), borderColor: THEME_COLORS.primary, borderWidth: 2 },
+                        { label: 'Wall Flow', data: data.map(d => d.wallFlow), borderColor: THEME_COLORS.secondary, borderWidth: 2 }
                     ]
                 };
             }
@@ -695,8 +718,8 @@
             `;
 
             insightContainer.innerHTML = 
-                createCard("Infill Strategy", analysis.infill, "purple", "#a78bfa") +
-                createCard("Wall Strategy", analysis.wall, "green", "#10b981");
+                createCard("Infill Strategy", analysis.infill, "purple", THEME_COLORS.primary) +
+                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary);
         }
 
         // --- Deep Analysis HTML Generation ---
@@ -711,7 +734,7 @@
 
                 return `
                 <div class="space-y-4">
-                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm" style="color: ${colorHex === '#a78bfa' ? '#c4b5fd' : '#6ee7b7'}">
+                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm" style="color: ${colorHex === THEME_COLORS.primary ? THEME_COLORS.primaryLight : THEME_COLORS.secondaryLight}">
                         <i data-lucide="layers" width="16"></i> ${title} Analysis
                     </div>
                     
@@ -788,8 +811,8 @@
             };
 
             analysisContent.innerHTML = 
-                createColumn("Infill", analysis.infill, "layers", "#a78bfa") +
-                createColumn("Wall", analysis.wall, "layers", "#10b981");
+                createColumn("Infill", analysis.infill, "layers", THEME_COLORS.primary) +
+                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary);
         }
 
         // Start
