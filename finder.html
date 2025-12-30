@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Printer Speed Bottleneck Finder</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Custom styles for range input to match the React look roughly */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: -6px;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .gauge-circle {
+            transition: stroke-dasharray 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                <i data-lucide="activity" class="text-blue-600"></i>
+                3D Printer Speed Bottleneck Finder
+            </h1>
+            <p class="text-slate-600 mt-2 max-w-2xl">
+                Simulate acceleration physics and volumetric flow to find your true printing limits.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- LEFT COLUMN: Inputs -->
+            <div class="lg:col-span-4 space-y-4 h-fit" id="input-container">
+                <!-- Inputs will be injected here by JS -->
+            </div>
+
+            <!-- RIGHT COLUMN: Visualization -->
+            <div class="lg:col-span-8 space-y-6">
+                
+                <!-- Graph Section -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex gap-4">
+                            <button onclick="setGraphMode('speed')" id="btn-mode-speed" class="px-3 py-1 rounded-full text-sm font-medium transition-colors bg-blue-100 text-blue-700">
+                                Speed (mm/s)
+                            </button>
+                            <button onclick="setGraphMode('flow')" id="btn-mode-flow" class="px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-500 hover:bg-slate-100">
+                                Flow (mm³/s)
+                            </button>
+                        </div>
+                        <div id="speed-legend" class="flex items-center gap-2 text-sm text-slate-500">
+                            <span class="w-8 h-0.5 bg-red-500 border-t border-dashed border-red-500 inline-block"></span> Max Volumetric Cap
+                        </div>
+                    </div>
+                    
+                    <div class="h-[350px] w-full relative">
+                        <canvas id="bottleneckChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Insight Cards Container -->
+                <div id="insight-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Cards injected by JS -->
+                </div>
+
+                <!-- Deep Analysis Section -->
+                <div class="bg-slate-800 text-white p-6 rounded-xl shadow-lg">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-700 pb-6">
+                        <div>
+                            <h3 class="font-bold text-xl flex items-center gap-2">
+                                <i data-lucide="gauge" class="text-blue-400 w-5 h-5"></i>
+                                Deep Move Analysis
+                            </h3>
+                            <p class="text-slate-400 text-sm">Analyze efficiency for a specific line length.</p>
+                        </div>
+                        <div class="flex items-center gap-4 bg-slate-700 p-2 rounded-lg w-full md:w-auto">
+                            <span id="analysis-length-display" class="text-sm font-mono text-blue-300 w-16">50mm</span>
+                            <input 
+                                type="range" 
+                                min="5" 
+                                max="200" 
+                                step="5"
+                                value="50" 
+                                id="analysis-slider"
+                                class="w-full md:w-48 accent-blue-500 cursor-pointer"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="analysis-content">
+                        <!-- Detailed analysis injected here -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- State ---
+        const state = {
+            config: {
+                nozzleSize: 0.4,
+                layerHeight: 0.2,
+                lineWidth: 0.45,
+                maxVolumetricSpeed: 25,
+                speedInfill: 200,
+                speedWall: 120,
+                speedTop: 100,
+                speedTravel: 350,
+                accelNormal: 3800,
+                accelInfill: 3800,
+                accelWall: 3000,
+                accelTop: 3000,
+                accelTravel: 3800,
+                jerk: 9
+            },
+            analysisLength: 50,
+            graphMode: 'speed'
+        };
+
+        let chartInstance = null;
+
+        // --- DOM Elements ---
+        const inputContainer = document.getElementById('input-container');
+        const insightContainer = document.getElementById('insight-cards-container');
+        const analysisContent = document.getElementById('analysis-content');
+        const analysisSlider = document.getElementById('analysis-slider');
+        const analysisLengthDisplay = document.getElementById('analysis-length-display');
+        const btnSpeed = document.getElementById('btn-mode-speed');
+        const btnFlow = document.getElementById('btn-mode-flow');
+        const speedLegend = document.getElementById('speed-legend');
+
+        // --- Initialization ---
+        function init() {
+            renderInputs();
+            initChart();
+            update();
+            
+            // Event Listeners
+            analysisSlider.addEventListener('input', (e) => {
+                state.analysisLength = parseInt(e.target.value);
+                analysisLengthDisplay.textContent = state.analysisLength + 'mm';
+                update();
+            });
+        }
+
+        function setGraphMode(mode) {
+            state.graphMode = mode;
+            if (mode === 'speed') {
+                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors bg-blue-100 text-blue-700";
+                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-500 hover:bg-slate-100";
+                speedLegend.style.display = 'flex';
+            } else {
+                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors bg-blue-100 text-blue-700";
+                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-500 hover:bg-slate-100";
+                speedLegend.style.display = 'none';
+            }
+            update();
+        }
+
+        // --- UI Rendering: Inputs ---
+        function renderInputs() {
+            const groups = [
+                {
+                    title: "Physical Limits",
+                    icon: "settings",
+                    inputs: [
+                        { label: "Nozzle Size", key: "nozzleSize", unit: "mm", step: 0.1 },
+                        { label: "Max Vol Flow", key: "maxVolumetricSpeed", unit: "mm³/s", step: 1, tooltip: "E3D V6 ~15, Volcano ~25" },
+                        { label: "Layer Height", key: "layerHeight", unit: "mm", step: 0.04 },
+                        { label: "Line Width", key: "lineWidth", unit: "mm", step: 0.01 }
+                    ]
+                },
+                {
+                    title: "Slicer Speed",
+                    icon: "zap",
+                    inputs: [
+                        { label: "Infill Speed", key: "speedInfill", unit: "mm/s" },
+                        { label: "Wall Speed", key: "speedWall", unit: "mm/s" },
+                        { label: "Top/Bot Speed", key: "speedTop", unit: "mm/s" },
+                        { label: "Travel Speed", key: "speedTravel", unit: "mm/s" }
+                    ]
+                },
+                {
+                    title: "Kinematics",
+                    icon: "trending-up",
+                    inputs: [
+                        { label: "Accel (Infill)", key: "accelInfill", unit: "mm/s²" },
+                        { label: "Accel (Wall)", key: "accelWall", unit: "mm/s²" },
+                        { label: "Accel (Travel)", key: "accelTravel", unit: "mm/s²" },
+                        { label: "Jerk / Sq.V", key: "jerk", unit: "mm/s" }
+                    ]
+                }
+            ];
+
+            inputContainer.innerHTML = groups.map(group => `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-center gap-2 mb-4 text-slate-700 font-semibold border-b pb-2">
+                        <i data-lucide="${group.icon}" width="18"></i>
+                        <h3>${group.title}</h3>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${group.inputs.map(input => `
+                            <div class="flex flex-col gap-1">
+                                <div class="flex justify-between items-center">
+                                    <label class="text-xs font-medium text-slate-500 uppercase">${input.label}</label>
+                                    ${input.tooltip ? `<div class="group relative cursor-help" title="${input.tooltip}"><i data-lucide="info" width="12" class="text-slate-400"></i></div>` : ''}
+                                </div>
+                                <div class="relative">
+                                    <input
+                                        id="input-${input.key}"
+                                        type="number"
+                                        value="${state.config[input.key]}"
+                                        step="${input.step || 1}"
+                                        onchange="updateConfig('${input.key}', this.value)"
+                                        class="w-full p-2 pr-8 bg-slate-50 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                                    />
+                                    <span class="absolute right-2 top-2 text-xs text-slate-400 select-none">${input.unit}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        window.updateConfig = (key, value) => {
+            const val = parseFloat(value) || 0;
+            state.config[key] = val;
+
+            // Auto-update line width if nozzle size changes (Now 100%)
+            if (key === 'nozzleSize') {
+                const newWidth = parseFloat((val * 1.0).toFixed(2));
+                state.config.lineWidth = newWidth;
+                
+                // Update DOM element for Line Width
+                const lwInput = document.getElementById('input-lineWidth');
+                if (lwInput) lwInput.value = newWidth;
+            }
+
+            update();
+        };
+
+        // --- Physics Engine ---
+        function calculatePhysics() {
+            const { config } = state;
+            const data = [];
+            const lengths = Array.from({ length: 100 }, (_, i) => (i + 1) * 2);
+
+            const area = config.layerHeight * config.lineWidth;
+            const volumetricMaxSpeed = config.maxVolumetricSpeed / (area || 0.001);
+
+            lengths.forEach(dist => {
+                const calcRealSpeed = (targetSpeed, accel, jerk) => {
+                    const maxReachable = Math.sqrt(Math.pow(jerk, 2) + 2 * accel * (dist / 2));
+                    const limit = Math.min(targetSpeed, volumetricMaxSpeed, maxReachable);
+                    
+                    let factor = 'User Setting';
+                    if (limit === volumetricMaxSpeed) factor = 'Volumetric Flow';
+                    else if (limit === maxReachable) factor = 'Acceleration';
+                    
+                    return { speed: limit, factor, target: targetSpeed, maxReachable };
+                };
+
+                const getFlow = (speed) => speed * area;
+
+                const infill = calcRealSpeed(config.speedInfill, config.accelInfill, config.jerk);
+                const wall = calcRealSpeed(config.speedWall, config.accelWall, config.jerk);
+                const top = calcRealSpeed(config.speedTop, config.accelTop, config.jerk);
+                const travel = calcRealSpeed(config.speedTravel, config.accelTravel, config.jerk);
+
+                data.push({
+                    length: dist,
+                    infill, wall, top, travel,
+                    volumetricLimit: volumetricMaxSpeed,
+                    infillFlow: getFlow(infill.speed),
+                    wallFlow: getFlow(wall.speed),
+                    maxFlow: config.maxVolumetricSpeed
+                });
+            });
+            return { data, volumetricMaxSpeed, area };
+        }
+
+        function runAnalysis(calculations) {
+            const { config, analysisLength } = state;
+            // Find closest data point
+            const point = calculations.data.find(d => d.length >= analysisLength) || calculations.data[calculations.data.length - 1];
+
+            const analyzeMove = (type, speedObj, accel) => {
+                const realSpeed = speedObj.speed;
+                const targetSpeed = speedObj.target;
+                
+                // Time Calcs
+                const v_max_reached = speedObj.maxReachable < targetSpeed && speedObj.maxReachable < calculations.volumetricMaxSpeed 
+                    ? speedObj.maxReachable : realSpeed;
+
+                const t_accel = (v_max_reached - config.jerk) / accel;
+                const d_accel = (Math.pow(v_max_reached, 2) - Math.pow(config.jerk, 2)) / (2 * accel);
+                
+                let t_cruise = 0;
+                if (d_accel * 2 < analysisLength) {
+                    const d_cruise = analysisLength - (d_accel * 2);
+                    t_cruise = d_cruise / v_max_reached;
+                }
+
+                const totalTime = (t_accel * 2) + t_cruise;
+                const idealTime = analysisLength / targetSpeed;
+
+                // Optimizations
+                const getOptimization = (percentage) => {
+                    const ratio = 1 - percentage;
+                    let tips = [];
+
+                    // Calculate required speed based on primary limiting factor
+                    if (speedObj.factor === 'Volumetric Flow') {
+                        // We need higher flow to allow higher speed
+                        const v_target = realSpeed / ratio;
+                        const flow_target = v_target * calculations.area;
+                        tips.push({ text: `Flow > ${flow_target.toFixed(1)} mm³/s`, icon: 'droplet' });
+
+                        // Check if other limits would block this new speed
+                        if (targetSpeed < v_target) {
+                             tips.push({ text: `Speed > ${Math.round(v_target)} mm/s`, icon: 'zap' });
+                        }
+                        const d_needed = (Math.pow(v_target, 2) - Math.pow(config.jerk, 2)) / (2 * accel);
+                        if (d_needed * 2 > analysisLength) {
+                            const a_needed = (Math.pow(v_target, 2) - Math.pow(config.jerk, 2)) / analysisLength;
+                            tips.push({ text: `Accel > ${Math.round(a_needed)} mm/s²`, icon: 'trending-up' });
+                        }
+
+                    } else if (speedObj.factor === 'Acceleration') {
+                        // We need higher acceleration to reduce time
+                        // Approximate for triangle profile: t proportional to 1/sqrt(a)
+                        const a_target = accel / (ratio * ratio);
+                        tips.push({ text: `Accel > ${Math.round(a_target)} mm/s²`, icon: 'trending-up' });
+
+                        // Check if this new acceleration hits speed/flow limits
+                        const v_peak_new = Math.sqrt(Math.pow(config.jerk, 2) + 2 * a_target * (analysisLength / 2));
+                        
+                        if (v_peak_new > calculations.volumetricMaxSpeed) {
+                            const flow_needed = v_peak_new * calculations.area;
+                            tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
+                        }
+                        if (v_peak_new > targetSpeed) {
+                             tips.push({ text: `Speed > ${Math.round(v_peak_new)} mm/s`, icon: 'zap' });
+                        }
+
+                    } else {
+                        // Speed Limited
+                        const v_target = targetSpeed / ratio;
+                        tips.push({ text: `Speed > ${Math.round(v_target)} mm/s`, icon: 'zap' });
+
+                        // Check if flow supports this
+                         const flow_needed = v_target * calculations.area;
+                         if (flow_needed > config.maxVolumetricSpeed) {
+                            tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
+                         }
+                         
+                         // Check if accel supports this
+                         const d_needed = (Math.pow(v_target, 2) - Math.pow(config.jerk, 2)) / (2 * accel);
+                         if (d_needed * 2 > analysisLength) {
+                             const a_needed = (Math.pow(v_target, 2) - Math.pow(config.jerk, 2)) / analysisLength;
+                             tips.push({ text: `Accel > ${Math.round(a_needed)} mm/s²`, icon: 'trending-up' });
+                         }
+                    }
+                    
+                    // Combine texts
+                    return { 
+                        label: `-${(percentage * 100).toFixed(0)}%`, 
+                        text: tips.map(t => t.text).join(' + '), 
+                        icon: tips[0].icon 
+                    };
+                };
+
+                return {
+                    efficiency: (realSpeed / targetSpeed) * 100,
+                    realTime: totalTime,
+                    idealTime: idealTime,
+                    flowRate: realSpeed * calculations.area,
+                    factor: speedObj.factor,
+                    speed: realSpeed,
+                    optimizations: [0.10, 0.25, 0.50].map(getOptimization)
+                };
+            };
+
+            return {
+                infill: analyzeMove('Infill', point.infill, config.accelInfill),
+                wall: analyzeMove('Wall', point.wall, config.accelWall)
+            };
+        }
+
+        // --- Main Update Loop ---
+        function update() {
+            const calculations = calculatePhysics();
+            const analysis = runAnalysis(calculations);
+
+            updateChart(calculations);
+            updateInsights(analysis);
+            updateDeepAnalysis(analysis, calculations.area);
+            
+            lucide.createIcons();
+        }
+
+        // --- Chart Logic (Chart.js) ---
+        function initChart() {
+            const ctx = document.getElementById('bottleneckChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true } },
+                        tooltip: { 
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.dataset.label}: ${Math.round(context.raw)} ${state.graphMode === 'speed' ? 'mm/s' : 'mm³/s'}`;
+                                }
+                            },
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            titleColor: '#1e293b',
+                            bodyColor: '#475569',
+                            borderColor: '#e2e8f0',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: true
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Move Distance (mm)', color: '#64748b' },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: { 
+                            title: { display: true, text: 'Speed (mm/s)', color: '#64748b' },
+                            grid: { color: '#f1f5f9' },
+                            beginAtZero: true
+                        }
+                    },
+                    elements: {
+                        point: { radius: 0, hitRadius: 10, hoverRadius: 4 },
+                        line: { tension: 0.4 }
+                    }
+                }
+            });
+        }
+
+        function updateChart(calculations) {
+            const { data, volumetricMaxSpeed } = calculations;
+            const labels = data.map(d => d.length);
+            const isSpeed = state.graphMode === 'speed';
+            
+            chartInstance.options.scales.y.title.text = isSpeed ? 'Speed (mm/s)' : 'Flow (mm³/s)';
+
+            if (isSpeed) {
+                // Limit Line (Constant)
+                const limitData = new Array(data.length).fill(volumetricMaxSpeed);
+                
+                chartInstance.data = {
+                    labels,
+                    datasets: [
+                        { label: 'Flow Limit', data: limitData, borderColor: 'red', borderDash: [5, 5], borderWidth: 1, pointRadius: 0, fill: false },
+                        { label: 'Infill', data: data.map(d => d.infill.speed), borderColor: '#3b82f6', borderWidth: 2 },
+                        { label: 'Wall', data: data.map(d => d.wall.speed), borderColor: '#10b981', borderWidth: 2 },
+                        { label: 'Top', data: data.map(d => d.top.speed), borderColor: '#8b5cf6', borderWidth: 2 },
+                        { label: 'Travel', data: data.map(d => d.travel.speed), borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5] }
+                    ]
+                };
+            } else {
+                const limitData = new Array(data.length).fill(state.config.maxVolumetricSpeed);
+                
+                chartInstance.data = {
+                    labels,
+                    datasets: [
+                        { label: 'Max Flow', data: limitData, borderColor: 'red', borderDash: [5, 5], borderWidth: 1, pointRadius: 0 },
+                        { label: 'Infill Flow', data: data.map(d => d.infillFlow), borderColor: '#3b82f6', borderWidth: 2 },
+                        { label: 'Wall Flow', data: data.map(d => d.wallFlow), borderColor: '#10b981', borderWidth: 2 }
+                    ]
+                };
+            }
+            chartInstance.update('none'); // 'none' for performance
+        }
+
+        // --- Insights HTML Generation ---
+        function updateInsights(analysis) {
+            const createCard = (title, data, colorClass, borderColor) => `
+                <div class="bg-white p-4 rounded-xl border-l-4 shadow-sm" style="border-color: ${borderColor}">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-slate-700">${title}</h4>
+                        <span class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500">Current: ${Math.round(data.speed)}mm/s</span>
+                    </div>
+                    
+                    <div class="text-sm text-slate-600 mb-3">
+                        Limiting Factor: <strong class="text-slate-800">${data.factor}</strong>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <i data-lucide="lightbulb" width="12" class="text-amber-500"></i>
+                            Time Savings Strategy
+                        </div>
+                        <div class="space-y-2">
+                            ${data.optimizations.map(opt => `
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500 font-mono text-xs w-12">${opt.label}</span>
+                                    <div class="flex items-center gap-2 flex-1 justify-end">
+                                        <span class="font-semibold text-slate-700">${opt.text}</span>
+                                        <i data-lucide="${opt.icon}" width="14" class="text-slate-400"></i>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            insightContainer.innerHTML = 
+                createCard("Infill Strategy", analysis.infill, "blue", "#3b82f6") +
+                createCard("Wall Strategy", analysis.wall, "green", "#10b981");
+        }
+
+        // --- Deep Analysis HTML Generation ---
+        function updateDeepAnalysis(analysis, area) {
+            const createColumn = (title, data, icon, colorHex, badgeColorClass) => {
+                const limitColorClass = data.factor === 'Acceleration' ? 'bg-amber-500/20 text-amber-300' :
+                                      data.factor === 'Volumetric Flow' ? 'bg-red-500/20 text-red-300' : 
+                                      'bg-green-500/20 text-green-300';
+                
+                const idealPercent = (data.idealTime / Math.max(data.realTime, 0.01)) * 100;
+                const lostPercent = 100 - idealPercent;
+
+                return `
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm" style="color: ${colorHex === '#3b82f6' ? '#93c5fd' : '#6ee7b7'}">
+                        <i data-lucide="layers" width="16"></i> ${title} Analysis
+                    </div>
+                    
+                    <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600 grid grid-cols-2 gap-4">
+                        <div class="col-span-2 flex justify-between items-center border-b border-slate-600 pb-3 mb-1">
+                            <div>
+                                <div class="text-3xl font-bold">${Math.round(data.speed)} <span class="text-sm text-slate-400 font-normal">mm/s</span></div>
+                                <div class="text-xs text-slate-400">Achieved Speed</div>
+                            </div>
+                            <div class="px-2 py-1 rounded text-xs font-bold ${limitColorClass}">
+                                Limit: ${data.factor}
+                            </div>
+                        </div>
+
+                        <!-- SVG Gauge -->
+                        <div class="flex flex-col items-center">
+                            <div class="flex flex-col items-center justify-center p-2">
+                                <div class="relative w-20 h-20">
+                                    <svg class="w-full h-full" viewBox="0 0 36 36">
+                                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" stroke-width="3" />
+                                        <path class="gauge-circle" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${colorHex}" stroke-width="3" stroke-dasharray="${data.efficiency}, 100" />
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center font-bold text-sm text-slate-300">
+                                        ${Math.round(data.efficiency)}%
+                                    </div>
+                                </div>
+                                <span class="text-xs font-medium text-slate-400 mt-1">Speed Eff.</span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Flow:</span>
+                                <span>${data.flowRate.toFixed(1)} mm³/s</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Time:</span>
+                                <span>${data.realTime.toFixed(2)}s</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Time Bar -->
+                    <div class="bg-slate-700/30 p-4 rounded-xl border border-slate-600/50">
+                        <div class="flex items-center gap-2 text-slate-400 text-xs mb-2">
+                            <i data-lucide="clock" width="12"></i> Time Cost Analysis
+                        </div>
+                        <div class="w-full mb-3">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="font-medium text-slate-400">${title} Time</span>
+                                <span class="text-slate-500">${data.realTime.toFixed(3)}s total</span>
+                            </div>
+                            <div class="h-4 w-full bg-slate-600 rounded-full overflow-hidden flex">
+                                <div style="width: ${idealPercent}%" class="bg-emerald-400 h-full"></div>
+                                <div style="width: ${lostPercent}%" class="bg-amber-400 h-full"></div>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                                <span>Cruise: ${data.idealTime.toFixed(3)}s</span>
+                                <span>Lost: ${(data.realTime - data.idealTime).toFixed(3)}s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            };
+
+            analysisContent.innerHTML = 
+                createColumn("Infill", analysis.infill, "layers", "#3b82f6") +
+                createColumn("Wall", analysis.wall, "layers", "#10b981");
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
