@@ -437,21 +437,7 @@
                 const targetSpeed = speedObj.target;
                 
                 // --- Time Calcs (Standard) ---
-                const v_max_reached = speedObj.maxReachable < targetSpeed && speedObj.maxReachable < calculations.volumetricMaxSpeed 
-                    ? speedObj.maxReachable : realSpeed;
-
-                const t_accel = (v_max_reached - config.jerk) / accel;
-                const safe_t_accel = isFinite(t_accel) ? t_accel : 0;
-                const d_accel = (Math.pow(v_max_reached, 2) - Math.pow(config.jerk, 2)) / (2 * accel);
-                const safe_d_accel = isFinite(d_accel) ? d_accel : 0;
-
-                let t_cruise = 0;
-                if (safe_d_accel * 2 < analysisLength) {
-                    const d_cruise = analysisLength - (safe_d_accel * 2);
-                    t_cruise = d_cruise / v_max_reached;
-                }
-
-                const totalTime = (safe_t_accel * 2) + t_cruise;
+                const totalTime = simulateTime(config.jerk, accel, targetSpeed);
                 const idealTime = analysisLength / targetSpeed;
 
                 // --- Jerk Sensitivity Analysis ---
