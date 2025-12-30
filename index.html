@@ -311,7 +311,7 @@
                         { label: "Accel (Wall)", key: "accelWall", unit: "mm/s²" },
                         { label: "Accel (Top/Bot)", key: "accelTop", unit: "mm/s²" },
                         { label: "Accel (Travel)", key: "accelTravel", unit: "mm/s²" },
-                        { label: "Junction Speed", key: "jerk", unit: "mm/s", tooltip: "Minimum speed at corners (Marlin 'Jerk'). Used for junction analysis only." }
+                        { label: "Junction Speed", key: "jerk", unit: "mm/s", tooltip: "Junction/cornering speed (related to Marlin Jerk setting). Used for junction analysis only." }
                     ]
                 }
             ];
@@ -422,6 +422,9 @@
             // Helper to simulate time for a move with given parameters
             // Uses trapezoidal velocity profile starting from rest
             const simulateTime = (a, v_target) => {
+                // Safety check: ensure acceleration is positive
+                if (a <= 0) return Infinity; // Invalid acceleration
+                
                 const v_limit_vol = calculations.volumetricMaxSpeed;
                 const v_reach = Math.sqrt(2 * a * (analysisLength / 2));
                 const v_peak = Math.min(v_target, v_limit_vol, v_reach);
@@ -453,10 +456,11 @@
                 // Note: "Jerk" in 3D printing firmware is actually junction speed (minimum cornering velocity)
                 // We analyze if starting from junction speed (instead of rest) would help
                 // This simulates continuous printing where moves don't fully stop at corners
-                const jerkBenefit = config.jerk > 1; // Only analyze if jerk is configured
+                const MIN_JERK_THRESHOLD = 1; // mm/s - minimum meaningful junction speed
+                const jerkBenefit = config.jerk > MIN_JERK_THRESHOLD;
                 let jerkSavingsPercent = 0;
                 
-                if (jerkBenefit) {
+                if (jerkBenefit && accel > 0) { // Ensure valid acceleration
                     // Simulate starting from junction speed (config.jerk) instead of rest
                     const v_limit_vol = calculations.volumetricMaxSpeed;
                     const v_reach_with_jerk = Math.sqrt(config.jerk * config.jerk + 2 * accel * (analysisLength / 2));
