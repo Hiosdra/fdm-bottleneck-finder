@@ -412,16 +412,35 @@
             // Find closest data point
             const point = calculations.data.find(d => d.length >= analysisLength) || calculations.data[calculations.data.length - 1];
 
+            // Helper to simulate Time with different parameters (for Jerk sensitivity)
+            const simulateTime = (j, a, v_target) => {
+                const v_limit_vol = calculations.volumetricMaxSpeed;
+                const v_reach = Math.sqrt(Math.pow(j, 2) + 2 * a * (analysisLength / 2));
+                const v_peak = Math.min(v_target, v_limit_vol, v_reach);
+                
+                const t_acc = (v_peak - j) / a;
+                // Avoid NaN
+                const safe_t_acc = isFinite(t_acc) ? t_acc : 0;
+                
+                const d_acc = (Math.pow(v_peak, 2) - Math.pow(j, 2)) / (2 * a);
+                const safe_d_acc = isFinite(d_acc) ? d_acc : 0;
+
+                let t_cru = 0;
+                if (safe_d_acc * 2 < analysisLength) {
+                    t_cru = (analysisLength - safe_d_acc * 2) / v_peak;
+                }
+                return (safe_t_acc * 2) + t_cru;
+            }
+
             const analyzeMove = (type, speedObj, accel) => {
                 const realSpeed = speedObj.speed;
                 const targetSpeed = speedObj.target;
                 
-                // Time Calcs
+                // --- Time Calcs (Standard) ---
                 const v_max_reached = speedObj.maxReachable < targetSpeed && speedObj.maxReachable < calculations.volumetricMaxSpeed 
                     ? speedObj.maxReachable : realSpeed;
 
                 const t_accel = (v_max_reached - config.jerk) / accel;
-                // Avoid NaN if accel is 0
                 const safe_t_accel = isFinite(t_accel) ? t_accel : 0;
                 const d_accel = (Math.pow(v_max_reached, 2) - Math.pow(config.jerk, 2)) / (2 * accel);
                 const safe_d_accel = isFinite(d_accel) ? d_accel : 0;
@@ -435,7 +454,12 @@
                 const totalTime = (safe_t_accel * 2) + t_cruise;
                 const idealTime = analysisLength / targetSpeed;
 
-                // Optimizations
+                // --- Jerk Sensitivity Analysis ---
+                // Calculate time if Jerk is doubled
+                const timeWithHighJerk = simulateTime(config.jerk * 2, accel, targetSpeed);
+                const jerkSavingsPercent = totalTime > 0 ? (1 - timeWithHighJerk / totalTime) * 100 : 0;
+
+                // --- Optimizations ---
                 const getOptimization = (percentage) => {
                     const ratio = 1 - percentage;
                     let tips = [];
@@ -459,7 +483,6 @@
 
                     } else if (speedObj.factor === 'Acceleration') {
                         // We need higher acceleration to reduce time
-                        // Approximate for triangle profile: t proportional to 1/sqrt(a)
                         const a_target = accel / (ratio * ratio);
                         tips.push({ text: `Accel > ${Math.round(a_target)} mm/s²`, icon: 'trending-up' });
 
@@ -508,6 +531,7 @@
                     flowRate: realSpeed * calculations.area,
                     factor: speedObj.factor,
                     speed: realSpeed,
+                    jerkSavingsPercent,
                     optimizations: [0.10, 0.25, 0.50].map(getOptimization)
                 };
             };
@@ -724,6 +748,15 @@
                                 <span>Lost: ${(data.realTime - data.idealTime).toFixed(3)}s</span>
                             </div>
                         </div>
+                        
+                        ${data.jerkSavingsPercent > 5 ? `
+                        <div class="mt-3 bg-amber-900/30 text-amber-100 p-2 rounded text-xs border border-amber-700/50 flex items-start gap-2">
+                             <i data-lucide="zap" width="14" class="text-amber-400 mt-0.5"></i>
+                             <div>
+                                <strong>Jerk Bottleneck:</strong> Increasing Jerk by 2x would save <strong>${Math.round(data.jerkSavingsPercent)}%</strong> time on this short move.
+                             </div>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
                 `;
