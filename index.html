@@ -16,6 +16,10 @@
 
     <style>
         /* Custom styles for range input to match the React look roughly */
+        :root {
+            --color-primary: #a78bfa;
+            --color-track: #475569;
+        }
         input[type=range] {
             -webkit-appearance: none; 
             background: transparent; 
@@ -25,7 +29,7 @@
             height: 16px;
             width: 16px;
             border-radius: 50%;
-            background: #3b82f6;
+            background: var(--color-primary);
             margin-top: -6px;
             cursor: pointer;
         }
@@ -33,7 +37,7 @@
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: #cbd5e1;
+            background: var(--color-track);
             border-radius: 2px;
         }
         .gauge-circle {
@@ -41,23 +45,23 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 min-h-screen p-4 md:p-8">
+<body class="bg-slate-900 font-sans text-slate-100 min-h-screen p-4 md:p-8">
 
     <div class="max-w-7xl mx-auto">
         
         <!-- Header -->
         <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                    <i data-lucide="activity" class="text-blue-600"></i>
+                <h1 class="text-3xl font-bold text-slate-100 flex items-center gap-3">
+                    <i data-lucide="activity" class="text-purple-400"></i>
                     3D Printer Bottleneck Finder
                 </h1>
-                <p class="text-slate-600 mt-2 max-w-2xl text-sm md:text-base">
+                <p class="text-slate-300 mt-2 max-w-2xl text-sm md:text-base">
                     Simulate acceleration physics and volumetric flow to find your true printing limits.
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="resetConfig()" class="text-sm text-slate-500 hover:text-red-500 underline decoration-dotted transition-colors">
+                <button onclick="resetConfig()" class="text-sm text-slate-400 hover:text-orange-400 underline decoration-dotted transition-colors">
                     Reset to Defaults
                 </button>
             </div>
@@ -69,11 +73,11 @@
             <div class="lg:col-span-4 space-y-4 h-fit">
                 
                 <!-- Preset Selector -->
-                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <div class="flex items-center gap-2 mb-3 text-blue-800 font-semibold text-sm uppercase tracking-wide">
+                <div class="bg-slate-800 p-4 rounded-xl border border-purple-500/30">
+                    <div class="flex items-center gap-2 mb-3 text-purple-300 font-semibold text-sm uppercase tracking-wide">
                         <i data-lucide="printer" width="16"></i> Load Preset
                     </div>
-                    <select id="preset-selector" onchange="loadPreset(this.value)" class="w-full p-2 bg-white border border-blue-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                    <select id="preset-selector" onchange="loadPreset(this.value)" class="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer">
                         <option value="" disabled selected>Select a printer profile...</option>
                         <option value="ender3">Ender 3 (Standard)</option>
                         <option value="prusamk4">Prusa MK4</option>
@@ -92,17 +96,17 @@
             <div class="lg:col-span-8 space-y-6">
                 
                 <!-- Graph Section -->
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-700">
                     <div class="flex justify-between items-center mb-6">
                         <div class="flex gap-4">
-                            <button onclick="setGraphMode('speed')" id="btn-mode-speed" class="px-3 py-1 rounded-full text-sm font-medium transition-colors bg-blue-100 text-blue-700">
+                            <button onclick="setGraphMode('speed')" id="btn-mode-speed" class="px-3 py-1 rounded-full text-sm font-medium transition-colors bg-purple-500/30 text-purple-300">
                                 Speed (mm/s)
                             </button>
-                            <button onclick="setGraphMode('flow')" id="btn-mode-flow" class="px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-500 hover:bg-slate-100">
+                            <button onclick="setGraphMode('flow')" id="btn-mode-flow" class="px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-400 hover:bg-slate-700">
                                 Flow (mm³/s)
                             </button>
                         </div>
-                        <div id="speed-legend" class="flex items-center gap-2 text-sm text-slate-500">
+                        <div id="speed-legend" class="flex items-center gap-2 text-sm text-slate-400">
                             <span class="w-8 h-0.5 bg-red-500 border-t border-dashed border-red-500 inline-block"></span> Max Volumetric Cap
                         </div>
                     </div>
@@ -118,17 +122,17 @@
                 </div>
 
                 <!-- Deep Analysis Section -->
-                <div class="bg-slate-800 text-white p-6 rounded-xl shadow-lg">
+                <div class="bg-slate-800 text-white p-6 rounded-xl shadow-lg border border-slate-700">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-700 pb-6">
                         <div>
                             <h3 class="font-bold text-xl flex items-center gap-2">
-                                <i data-lucide="gauge" class="text-blue-400 w-5 h-5"></i>
+                                <i data-lucide="gauge" class="text-purple-400 w-5 h-5"></i>
                                 Deep Move Analysis
                             </h3>
                             <p class="text-slate-400 text-sm">Analyze efficiency for a specific line length.</p>
                         </div>
                         <div class="flex items-center gap-4 bg-slate-700 p-2 rounded-lg w-full md:w-auto">
-                            <span id="analysis-length-display" class="text-sm font-mono text-blue-300 w-16">50mm</span>
+                            <span id="analysis-length-display" class="text-sm font-mono text-purple-300 w-16">50mm</span>
                             <input 
                                 type="range" 
                                 min="5" 
@@ -136,7 +140,7 @@
                                 step="5"
                                 value="50" 
                                 id="analysis-slider"
-                                class="w-full md:w-48 accent-blue-500 cursor-pointer"
+                                class="w-full md:w-48 accent-purple-500 cursor-pointer"
                             >
                         </div>
                     </div>
@@ -152,6 +156,25 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
+        // --- Theme Colors ---
+        const THEME_COLORS = {
+            // Primary colors
+            primary: '#a78bfa',      // purple-400
+            primaryLight: '#c4b5fd', // purple-300
+            secondary: '#10b981',    // green-500
+            secondaryLight: '#6ee7b7', // green-400
+            accent: '#fb923c',       // orange-400
+            
+            // Chart colors
+            chartLimit: '#ef4444',   // red-500
+            chartTravel: '#94a3b8',  // slate-400
+            
+            // Status colors
+            warning: '#f59e0b',      // amber-500
+            danger: '#ef4444',       // red-500
+            success: '#10b981'       // green-500
+        };
+
         // --- Configuration & Defaults ---
         const defaultState = {
             config: {
@@ -269,12 +292,12 @@
         function setGraphMode(mode) {
             state.graphMode = mode;
             if (mode === 'speed') {
-                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors bg-blue-100 text-blue-700";
-                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-500 hover:bg-slate-100";
+                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors bg-purple-500/30 text-purple-300";
+                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-400 hover:bg-slate-700";
                 speedLegend.style.display = 'flex';
             } else {
-                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors bg-blue-100 text-blue-700";
-                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-500 hover:bg-slate-100";
+                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors bg-purple-500/30 text-purple-300";
+                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-400 hover:bg-slate-700";
                 speedLegend.style.display = 'none';
             }
             update();
@@ -317,8 +340,8 @@
             ];
 
             inputContainer.innerHTML = groups.map(group => `
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <div class="flex items-center gap-2 mb-4 text-slate-700 font-semibold border-b pb-2">
+                <div class="bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-700">
+                    <div class="flex items-center gap-2 mb-4 text-slate-200 font-semibold border-b border-slate-700 pb-2">
                         <i data-lucide="${group.icon}" width="18"></i>
                         <h3>${group.title}</h3>
                     </div>
@@ -326,8 +349,8 @@
                         ${group.inputs.map(input => `
                             <div class="flex flex-col gap-1">
                                 <div class="flex justify-between items-center">
-                                    <label class="text-xs font-medium text-slate-500 uppercase">${input.label}</label>
-                                    ${input.tooltip ? `<div class="group relative cursor-help" title="${input.tooltip}"><i data-lucide="info" width="12" class="text-slate-400"></i></div>` : ''}
+                                    <label class="text-xs font-medium text-slate-400 uppercase">${input.label}</label>
+                                    ${input.tooltip ? `<div class="group relative cursor-help" title="${input.tooltip}"><i data-lucide="info" width="12" class="text-slate-500"></i></div>` : ''}
                                 </div>
                                 <div class="relative">
                                     <input
@@ -336,9 +359,9 @@
                                         value="${state.config[input.key] !== undefined ? state.config[input.key] : ''}"
                                         step="${input.step || 1}"
                                         onchange="updateConfig('${input.key}', this.value)"
-                                        class="w-full p-2 pr-8 bg-slate-50 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm transition-all hover:border-blue-300"
+                                        class="w-full p-2 pr-8 bg-slate-700 border border-slate-600 rounded focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm transition-all hover:border-purple-500/50 text-slate-200"
                                     />
-                                    <span class="absolute right-2 top-2 text-xs text-slate-400 select-none">${input.unit}</span>
+                                    <span class="absolute right-2 top-2 text-xs text-slate-500 select-none">${input.unit}</span>
                                 </div>
                             </div>
                         `).join('')}
@@ -582,17 +605,23 @@
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { position: 'top', labels: { usePointStyle: true } },
+                        legend: { 
+                            position: 'top', 
+                            labels: { 
+                                usePointStyle: true,
+                                color: '#cbd5e1'
+                            } 
+                        },
                         tooltip: { 
                             callbacks: {
                                 label: (context) => {
                                     return `${context.dataset.label}: ${Math.round(context.raw)} ${state.graphMode === 'speed' ? 'mm/s' : 'mm³/s'}`;
                                 }
                             },
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                            titleColor: '#1e293b',
-                            bodyColor: '#475569',
-                            borderColor: '#e2e8f0',
+                            backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#475569',
                             borderWidth: 1,
                             padding: 10,
                             displayColors: true
@@ -600,12 +629,14 @@
                     },
                     scales: {
                         x: { 
-                            title: { display: true, text: 'Move Distance (mm)', color: '#64748b' },
-                            grid: { color: '#f1f5f9' }
+                            title: { display: true, text: 'Move Distance (mm)', color: '#94a3b8' },
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' }
                         },
                         y: { 
-                            title: { display: true, text: 'Speed (mm/s)', color: '#64748b' },
-                            grid: { color: '#f1f5f9' },
+                            title: { display: true, text: 'Speed (mm/s)', color: '#94a3b8' },
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' },
                             beginAtZero: true
                         }
                     },
@@ -631,11 +662,11 @@
                 chartInstance.data = {
                     labels,
                     datasets: [
-                        { label: 'Flow Limit', data: limitData, borderColor: 'red', borderDash: [5, 5], borderWidth: 1, pointRadius: 0, fill: false },
-                        { label: 'Infill', data: data.map(d => d.infill.speed), borderColor: '#3b82f6', borderWidth: 2 },
-                        { label: 'Wall', data: data.map(d => d.wall.speed), borderColor: '#10b981', borderWidth: 2 },
-                        { label: 'Top', data: data.map(d => d.top.speed), borderColor: '#8b5cf6', borderWidth: 2 },
-                        { label: 'Travel', data: data.map(d => d.travel.speed), borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5] }
+                        { label: 'Flow Limit', data: limitData, borderColor: THEME_COLORS.chartLimit, borderDash: [5, 5], borderWidth: 1, pointRadius: 0, fill: false },
+                        { label: 'Infill', data: data.map(d => d.infill.speed), borderColor: THEME_COLORS.primary, borderWidth: 2 },
+                        { label: 'Wall', data: data.map(d => d.wall.speed), borderColor: THEME_COLORS.secondary, borderWidth: 2 },
+                        { label: 'Top', data: data.map(d => d.top.speed), borderColor: THEME_COLORS.accent, borderWidth: 2 },
+                        { label: 'Travel', data: data.map(d => d.travel.speed), borderColor: THEME_COLORS.chartTravel, borderWidth: 2, borderDash: [5, 5] }
                     ]
                 };
             } else {
@@ -644,9 +675,9 @@
                 chartInstance.data = {
                     labels,
                     datasets: [
-                        { label: 'Max Flow', data: limitData, borderColor: 'red', borderDash: [5, 5], borderWidth: 1, pointRadius: 0 },
-                        { label: 'Infill Flow', data: data.map(d => d.infillFlow), borderColor: '#3b82f6', borderWidth: 2 },
-                        { label: 'Wall Flow', data: data.map(d => d.wallFlow), borderColor: '#10b981', borderWidth: 2 }
+                        { label: 'Max Flow', data: limitData, borderColor: THEME_COLORS.chartLimit, borderDash: [5, 5], borderWidth: 1, pointRadius: 0 },
+                        { label: 'Infill Flow', data: data.map(d => d.infillFlow), borderColor: THEME_COLORS.primary, borderWidth: 2 },
+                        { label: 'Wall Flow', data: data.map(d => d.wallFlow), borderColor: THEME_COLORS.secondary, borderWidth: 2 }
                     ]
                 };
             }
@@ -656,27 +687,27 @@
         // --- Insights HTML Generation ---
         function updateInsights(analysis) {
             const createCard = (title, data, colorClass, borderColor) => `
-                <div class="bg-white p-4 rounded-xl border-l-4 shadow-sm" style="border-color: ${borderColor}">
+                <div class="bg-slate-800 p-4 rounded-xl border-l-4 shadow-sm" style="border-color: ${borderColor}">
                     <div class="flex justify-between items-start mb-2">
-                        <h4 class="font-bold text-slate-700">${title}</h4>
-                        <span class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500">Current: ${Math.round(data.speed)}mm/s</span>
+                        <h4 class="font-bold text-slate-200">${title}</h4>
+                        <span class="text-xs font-mono bg-slate-700 px-2 py-1 rounded text-slate-300">Current: ${Math.round(data.speed)}mm/s</span>
                     </div>
                     
-                    <div class="text-sm text-slate-600 mb-3">
-                        Limiting Factor: <strong class="text-slate-800">${data.factor}</strong>
+                    <div class="text-sm text-slate-300 mb-3">
+                        Limiting Factor: <strong class="text-slate-100">${data.factor}</strong>
                     </div>
 
-                    <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="bg-slate-700/50 rounded-lg p-3">
                         <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                            <i data-lucide="lightbulb" width="12" class="text-amber-500"></i>
+                            <i data-lucide="lightbulb" width="12" class="text-orange-400"></i>
                             Time Savings Strategy
                         </div>
                         <div class="space-y-2">
                             ${data.optimizations.map(opt => `
                                 <div class="flex items-center justify-between text-sm">
-                                    <span class="text-slate-500 font-mono text-xs w-12">${opt.label}</span>
+                                    <span class="text-slate-400 font-mono text-xs w-12">${opt.label}</span>
                                     <div class="flex items-center gap-2 flex-1 justify-end">
-                                        <span class="font-semibold text-slate-700 text-right">${opt.text}</span>
+                                        <span class="font-semibold text-slate-200 text-right">${opt.text}</span>
                                         <i data-lucide="${opt.icon}" width="14" class="text-slate-400"></i>
                                     </div>
                                 </div>
@@ -687,8 +718,8 @@
             `;
 
             insightContainer.innerHTML = 
-                createCard("Infill Strategy", analysis.infill, "blue", "#3b82f6") +
-                createCard("Wall Strategy", analysis.wall, "green", "#10b981");
+                createCard("Infill Strategy", analysis.infill, "purple", THEME_COLORS.primary) +
+                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary);
         }
 
         // --- Deep Analysis HTML Generation ---
@@ -703,7 +734,7 @@
 
                 return `
                 <div class="space-y-4">
-                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm" style="color: ${colorHex === '#3b82f6' ? '#93c5fd' : '#6ee7b7'}">
+                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm" style="color: ${colorHex === THEME_COLORS.primary ? THEME_COLORS.primaryLight : THEME_COLORS.secondaryLight}">
                         <i data-lucide="layers" width="16"></i> ${title} Analysis
                     </div>
                     
@@ -780,8 +811,8 @@
             };
 
             analysisContent.innerHTML = 
-                createColumn("Infill", analysis.infill, "layers", "#3b82f6") +
-                createColumn("Wall", analysis.wall, "layers", "#10b981");
+                createColumn("Infill", analysis.infill, "layers", THEME_COLORS.primary) +
+                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary);
         }
 
         // Start
