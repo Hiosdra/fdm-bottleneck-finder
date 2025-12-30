@@ -46,21 +46,46 @@
     <div class="max-w-7xl mx-auto">
         
         <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                <i data-lucide="activity" class="text-blue-600"></i>
-                3D Printer Speed Bottleneck Finder
-            </h1>
-            <p class="text-slate-600 mt-2 max-w-2xl">
-                Simulate acceleration physics and volumetric flow to find your true printing limits.
-            </p>
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                    <i data-lucide="activity" class="text-blue-600"></i>
+                    3D Printer Bottleneck Finder
+                </h1>
+                <p class="text-slate-600 mt-2 max-w-2xl text-sm md:text-base">
+                    Simulate acceleration physics and volumetric flow to find your true printing limits.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="resetConfig()" class="text-sm text-slate-500 hover:text-red-500 underline decoration-dotted transition-colors">
+                    Reset to Defaults
+                </button>
+            </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             <!-- LEFT COLUMN: Inputs -->
-            <div class="lg:col-span-4 space-y-4 h-fit" id="input-container">
-                <!-- Inputs will be injected here by JS -->
+            <div class="lg:col-span-4 space-y-4 h-fit">
+                
+                <!-- Preset Selector -->
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <div class="flex items-center gap-2 mb-3 text-blue-800 font-semibold text-sm uppercase tracking-wide">
+                        <i data-lucide="printer" width="16"></i> Load Preset
+                    </div>
+                    <select id="preset-selector" onchange="loadPreset(this.value)" class="w-full p-2 bg-white border border-blue-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                        <option value="" disabled selected>Select a printer profile...</option>
+                        <option value="ender3">Ender 3 (Standard)</option>
+                        <option value="prusamk4">Prusa MK4</option>
+                        <option value="bambux1c">Bambu Lab X1C</option>
+                        <option value="voron24">Voron 2.4 (High Flow)</option>
+                        <option value="k1">Creality K1 / Max</option>
+                    </select>
+                </div>
+
+                <div id="input-container" class="space-y-4">
+                    <!-- Inputs will be injected here by JS -->
+                </div>
             </div>
 
             <!-- RIGHT COLUMN: Visualization -->
@@ -127,28 +152,58 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- State ---
-        const state = {
+        // --- Configuration & Defaults ---
+        const defaultState = {
             config: {
                 nozzleSize: 0.4,
                 layerHeight: 0.2,
-                lineWidth: 0.45,
-                maxVolumetricSpeed: 25,
-                speedInfill: 200,
-                speedWall: 120,
-                speedTop: 100,
-                speedTravel: 350,
-                accelNormal: 3800,
-                accelInfill: 3800,
-                accelWall: 3000,
-                accelTop: 3000,
-                accelTravel: 3800,
-                jerk: 9
+                lineWidth: 0.40,
+                maxVolumetricSpeed: 15,
+                speedInfill: 60,
+                speedWall: 40,
+                speedTop: 40,
+                speedTravel: 150,
+                accelInfill: 500,
+                accelWall: 500,
+                accelTop: 500,
+                accelTravel: 1000,
+                jerk: 8
             },
             analysisLength: 50,
             graphMode: 'speed'
         };
 
+        // Printer Presets Library
+        const printerPresets = {
+            'ender3': {
+                nozzleSize: 0.4, layerHeight: 0.2, lineWidth: 0.4, maxVolumetricSpeed: 12,
+                speedInfill: 60, speedWall: 40, speedTop: 40, speedTravel: 150,
+                accelInfill: 500, accelWall: 500, accelTop: 500, accelTravel: 1000, jerk: 8
+            },
+            'prusamk4': {
+                nozzleSize: 0.4, layerHeight: 0.2, lineWidth: 0.45, maxVolumetricSpeed: 15,
+                speedInfill: 170, speedWall: 80, speedTop: 50, speedTravel: 300,
+                accelInfill: 2500, accelWall: 1000, accelTop: 800, accelTravel: 4000, jerk: 10
+            },
+            'bambux1c': {
+                nozzleSize: 0.4, layerHeight: 0.2, lineWidth: 0.42, maxVolumetricSpeed: 24,
+                speedInfill: 270, speedWall: 200, speedTop: 150, speedTravel: 500,
+                accelInfill: 10000, accelWall: 5000, accelTop: 2000, accelTravel: 10000, jerk: 12
+            },
+            'voron24': {
+                nozzleSize: 0.4, layerHeight: 0.2, lineWidth: 0.4, maxVolumetricSpeed: 24,
+                speedInfill: 300, speedWall: 150, speedTop: 100, speedTravel: 500,
+                accelInfill: 5000, accelWall: 3000, accelTop: 2000, accelTravel: 7000, jerk: 12
+            },
+             'k1': {
+                nozzleSize: 0.4, layerHeight: 0.2, lineWidth: 0.42, maxVolumetricSpeed: 22,
+                speedInfill: 300, speedWall: 200, speedTop: 120, speedTravel: 500,
+                accelInfill: 12000, accelWall: 5000, accelTop: 2000, accelTravel: 10000, jerk: 15
+            }
+        };
+
+        // --- State Management ---
+        let state = JSON.parse(JSON.stringify(defaultState));
         let chartInstance = null;
 
         // --- DOM Elements ---
@@ -163,6 +218,18 @@
 
         // --- Initialization ---
         function init() {
+            // Load from LocalStorage if available
+            const saved = localStorage.getItem('bottleneckFinderConfig');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Merge saved config with default structure to ensure all keys exist
+                    state.config = { ...defaultState.config, ...parsed };
+                } catch (e) {
+                    console.error("Failed to load config", e);
+                }
+            }
+
             renderInputs();
             initChart();
             update();
@@ -173,6 +240,30 @@
                 analysisLengthDisplay.textContent = state.analysisLength + 'mm';
                 update();
             });
+        }
+
+        // --- Core Logic ---
+        function loadPreset(presetKey) {
+            if (printerPresets[presetKey]) {
+                state.config = { ...printerPresets[presetKey] };
+                saveConfig();
+                renderInputs(); // Re-render inputs to show new values
+                update();
+            }
+        }
+
+        function resetConfig() {
+            if(confirm("Reset all settings to default?")) {
+                state.config = { ...defaultState.config };
+                document.getElementById('preset-selector').value = "";
+                saveConfig();
+                renderInputs();
+                update();
+            }
+        }
+
+        function saveConfig() {
+            localStorage.setItem('bottleneckFinderConfig', JSON.stringify(state.config));
         }
 
         function setGraphMode(mode) {
@@ -218,6 +309,7 @@
                     inputs: [
                         { label: "Accel (Infill)", key: "accelInfill", unit: "mm/s²" },
                         { label: "Accel (Wall)", key: "accelWall", unit: "mm/s²" },
+                        { label: "Accel (Top/Bot)", key: "accelTop", unit: "mm/s²" },
                         { label: "Accel (Travel)", key: "accelTravel", unit: "mm/s²" },
                         { label: "Jerk / Sq.V", key: "jerk", unit: "mm/s" }
                     ]
@@ -241,10 +333,10 @@
                                     <input
                                         id="input-${input.key}"
                                         type="number"
-                                        value="${state.config[input.key]}"
+                                        value="${state.config[input.key] !== undefined ? state.config[input.key] : ''}"
                                         step="${input.step || 1}"
                                         onchange="updateConfig('${input.key}', this.value)"
-                                        class="w-full p-2 pr-8 bg-slate-50 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                                        class="w-full p-2 pr-8 bg-slate-50 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm transition-all hover:border-blue-300"
                                     />
                                     <span class="absolute right-2 top-2 text-xs text-slate-400 select-none">${input.unit}</span>
                                 </div>
@@ -261,7 +353,7 @@
             const val = parseFloat(value) || 0;
             state.config[key] = val;
 
-            // Auto-update line width if nozzle size changes (Now 100%)
+            // Auto-update line width if nozzle size changes (100% match)
             if (key === 'nozzleSize') {
                 const newWidth = parseFloat((val * 1.0).toFixed(2));
                 state.config.lineWidth = newWidth;
@@ -271,6 +363,7 @@
                 if (lwInput) lwInput.value = newWidth;
             }
 
+            saveConfig(); // Save to local storage on every change
             update();
         };
 
@@ -288,7 +381,7 @@
                     const maxReachable = Math.sqrt(Math.pow(jerk, 2) + 2 * accel * (dist / 2));
                     const limit = Math.min(targetSpeed, volumetricMaxSpeed, maxReachable);
                     
-                    let factor = 'User Setting';
+                    let factor = 'Speed'; // Changed from 'User Setting'
                     if (limit === volumetricMaxSpeed) factor = 'Volumetric Flow';
                     else if (limit === maxReachable) factor = 'Acceleration';
                     
@@ -328,15 +421,18 @@
                     ? speedObj.maxReachable : realSpeed;
 
                 const t_accel = (v_max_reached - config.jerk) / accel;
+                // Avoid NaN if accel is 0
+                const safe_t_accel = isFinite(t_accel) ? t_accel : 0;
                 const d_accel = (Math.pow(v_max_reached, 2) - Math.pow(config.jerk, 2)) / (2 * accel);
-                
+                const safe_d_accel = isFinite(d_accel) ? d_accel : 0;
+
                 let t_cruise = 0;
-                if (d_accel * 2 < analysisLength) {
-                    const d_cruise = analysisLength - (d_accel * 2);
+                if (safe_d_accel * 2 < analysisLength) {
+                    const d_cruise = analysisLength - (safe_d_accel * 2);
                     t_cruise = d_cruise / v_max_reached;
                 }
 
-                const totalTime = (t_accel * 2) + t_cruise;
+                const totalTime = (safe_t_accel * 2) + t_cruise;
                 const idealTime = analysisLength / targetSpeed;
 
                 // Optimizations
@@ -539,7 +635,7 @@
                                 <div class="flex items-center justify-between text-sm">
                                     <span class="text-slate-500 font-mono text-xs w-12">${opt.label}</span>
                                     <div class="flex items-center gap-2 flex-1 justify-end">
-                                        <span class="font-semibold text-slate-700">${opt.text}</span>
+                                        <span class="font-semibold text-slate-700 text-right">${opt.text}</span>
                                         <i data-lucide="${opt.icon}" width="14" class="text-slate-400"></i>
                                     </div>
                                 </div>
