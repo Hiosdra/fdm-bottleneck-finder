@@ -117,7 +117,7 @@
                 </div>
 
                 <!-- Insight Cards Container -->
-                <div id="insight-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="insight-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Cards injected by JS -->
                 </div>
 
@@ -145,7 +145,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="analysis-content">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="analysis-content">
                         <!-- Detailed analysis injected here -->
                     </div>
                 </div>
@@ -418,12 +418,23 @@
                     return { speed: limit, factor, target: targetSpeed, maxReachable };
                 };
 
+                // Travel moves don't extrude, so they're not limited by volumetric flow
+                const calcTravelSpeed = (targetSpeed, accel) => {
+                    const maxReachable = Math.sqrt(2 * accel * (dist / 2));
+                    const limit = Math.min(targetSpeed, maxReachable);
+                    
+                    let factor = 'Speed';
+                    if (limit === maxReachable) factor = 'Acceleration';
+                    
+                    return { speed: limit, factor, target: targetSpeed, maxReachable };
+                };
+
                 const getFlow = (speed) => speed * area;
 
                 const infill = calcRealSpeed(config.speedInfill, config.accelInfill);
                 const wall = calcRealSpeed(config.speedWall, config.accelWall);
                 const top = calcRealSpeed(config.speedTop, config.accelTop);
-                const travel = calcRealSpeed(config.speedTravel, config.accelTravel);
+                const travel = calcTravelSpeed(config.speedTravel, config.accelTravel);
 
                 data.push({
                     length: dist,
@@ -504,6 +515,7 @@
                 const getOptimization = (percentage) => {
                     const ratio = 1 - percentage;
                     let tips = [];
+                    const isTravel = type === 'Travel';
 
                     // Calculate required speed based on primary limiting factor
                     if (speedObj.factor === 'Volumetric Flow') {
@@ -530,7 +542,8 @@
                         // Check if this new acceleration hits speed/flow limits
                         const v_peak_new = Math.sqrt(2 * a_target * (analysisLength / 2));
                         
-                        if (v_peak_new > calculations.volumetricMaxSpeed) {
+                        // Travel moves don't extrude, so skip flow recommendations
+                        if (!isTravel && v_peak_new > calculations.volumetricMaxSpeed) {
                             const flow_needed = v_peak_new * calculations.area;
                             tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
                         }
@@ -543,11 +556,14 @@
                         const v_target = targetSpeed / ratio;
                         tips.push({ text: `Speed > ${Math.round(v_target)} mm/s`, icon: 'zap' });
 
-                        // Check if flow supports this
-                         const flow_needed = v_target * calculations.area;
-                         if (flow_needed > config.maxVolumetricSpeed) {
-                            tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
-                         }
+                        // Travel moves don't extrude, so skip flow recommendations
+                        if (!isTravel) {
+                            // Check if flow supports this
+                            const flow_needed = v_target * calculations.area;
+                            if (flow_needed > config.maxVolumetricSpeed) {
+                                tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
+                            }
+                        }
                          
                          // Check if accel supports this
                          const d_needed = (v_target * v_target) / (2 * accel);
@@ -568,7 +584,7 @@
                     efficiency: (realSpeed / targetSpeed) * 100,
                     realTime: totalTime,
                     idealTime: idealTime,
-                    flowRate: realSpeed * calculations.area,
+                    flowRate: type === 'Travel' ? 0 : realSpeed * calculations.area,
                     factor: speedObj.factor,
                     speed: realSpeed,
                     jerkSavingsPercent,
@@ -578,7 +594,8 @@
 
             return {
                 infill: analyzeMove('Infill', point.infill, config.accelInfill),
-                wall: analyzeMove('Wall', point.wall, config.accelWall)
+                wall: analyzeMove('Wall', point.wall, config.accelWall),
+                travel: analyzeMove('Travel', point.travel, config.accelTravel)
             };
         }
 
@@ -719,7 +736,8 @@
 
             insightContainer.innerHTML = 
                 createCard("Infill Strategy", analysis.infill, "purple", THEME_COLORS.primary) +
-                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary);
+                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary) +
+                createCard("Travel Strategy", analysis.travel, "blue", THEME_COLORS.chartTravel);
         }
 
         // --- Deep Analysis HTML Generation ---
@@ -812,7 +830,8 @@
 
             analysisContent.innerHTML = 
                 createColumn("Infill", analysis.infill, "layers", THEME_COLORS.primary) +
-                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary);
+                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary) +
+                createColumn("Travel", analysis.travel, "layers", THEME_COLORS.chartTravel);
         }
 
         // Start
