@@ -515,6 +515,7 @@
                 const getOptimization = (percentage) => {
                     const ratio = 1 - percentage;
                     let tips = [];
+                    const isTravel = type === 'Travel';
 
                     // Calculate required speed based on primary limiting factor
                     if (speedObj.factor === 'Volumetric Flow') {
@@ -541,7 +542,8 @@
                         // Check if this new acceleration hits speed/flow limits
                         const v_peak_new = Math.sqrt(2 * a_target * (analysisLength / 2));
                         
-                        if (v_peak_new > calculations.volumetricMaxSpeed) {
+                        // Travel moves don't extrude, so skip flow recommendations
+                        if (!isTravel && v_peak_new > calculations.volumetricMaxSpeed) {
                             const flow_needed = v_peak_new * calculations.area;
                             tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
                         }
@@ -554,11 +556,14 @@
                         const v_target = targetSpeed / ratio;
                         tips.push({ text: `Speed > ${Math.round(v_target)} mm/s`, icon: 'zap' });
 
-                        // Check if flow supports this
-                         const flow_needed = v_target * calculations.area;
-                         if (flow_needed > config.maxVolumetricSpeed) {
-                            tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
-                         }
+                        // Travel moves don't extrude, so skip flow recommendations
+                        if (!isTravel) {
+                            // Check if flow supports this
+                            const flow_needed = v_target * calculations.area;
+                            if (flow_needed > config.maxVolumetricSpeed) {
+                                tips.push({ text: `Flow > ${flow_needed.toFixed(1)} mm³/s`, icon: 'droplet' });
+                            }
+                        }
                          
                          // Check if accel supports this
                          const d_needed = (v_target * v_target) / (2 * accel);
