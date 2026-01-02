@@ -37,6 +37,11 @@
         input:hover, select:hover {
             border-color: rgba(255, 2, 19, 0.5) !important;
         }
+        
+        /* Reset button hover */
+        .reset-btn:hover {
+            color: #ff0213 !important;
+        }
         input[type=range] {
             -webkit-appearance: none; 
             background: transparent; 
@@ -78,7 +83,7 @@
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="resetConfig()" class="text-sm text-slate-400 underline decoration-dotted transition-colors" style="--hover-color: #ff0213;" onmouseover="this.style.color='#ff0213'" onmouseout="this.style.color=''">
+                <button onclick="resetConfig()" class="reset-btn text-sm text-slate-400 underline decoration-dotted transition-colors">
                     Reset to Defaults
                 </button>
             </div>
@@ -90,7 +95,7 @@
             <div class="lg:col-span-4 space-y-4 h-fit">
                 
                 <!-- Preset Selector -->
-                <div class="voron-card p-4 rounded-xl border border-red-500/30">
+                <div class="voron-card p-4 rounded-xl border" style="border-color: rgba(255, 2, 19, 0.3);">
                     <div class="flex items-center gap-2 mb-3 font-semibold text-sm uppercase tracking-wide" style="color: #ff3341;">
                         <i data-lucide="printer" width="16"></i> Load Preset
                     </div>
