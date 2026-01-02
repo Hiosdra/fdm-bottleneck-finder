@@ -584,7 +584,7 @@
                     efficiency: (realSpeed / targetSpeed) * 100,
                     realTime: totalTime,
                     idealTime: idealTime,
-                    flowRate: realSpeed * calculations.area,
+                    flowRate: type === 'Travel' ? 0 : realSpeed * calculations.area,
                     factor: speedObj.factor,
                     speed: realSpeed,
                     jerkSavingsPercent,
