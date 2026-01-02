@@ -418,12 +418,23 @@
                     return { speed: limit, factor, target: targetSpeed, maxReachable };
                 };
 
+                // Travel moves don't extrude, so they're not limited by volumetric flow
+                const calcTravelSpeed = (targetSpeed, accel) => {
+                    const maxReachable = Math.sqrt(2 * accel * (dist / 2));
+                    const limit = Math.min(targetSpeed, maxReachable);
+                    
+                    let factor = 'Speed';
+                    if (limit === maxReachable) factor = 'Acceleration';
+                    
+                    return { speed: limit, factor, target: targetSpeed, maxReachable };
+                };
+
                 const getFlow = (speed) => speed * area;
 
                 const infill = calcRealSpeed(config.speedInfill, config.accelInfill);
                 const wall = calcRealSpeed(config.speedWall, config.accelWall);
                 const top = calcRealSpeed(config.speedTop, config.accelTop);
-                const travel = calcRealSpeed(config.speedTravel, config.accelTravel);
+                const travel = calcTravelSpeed(config.speedTravel, config.accelTravel);
 
                 data.push({
                     length: dist,
