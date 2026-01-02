@@ -117,7 +117,7 @@
                 </div>
 
                 <!-- Insight Cards Container -->
-                <div id="insight-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="insight-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Cards injected by JS -->
                 </div>
 
@@ -145,7 +145,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="analysis-content">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="analysis-content">
                         <!-- Detailed analysis injected here -->
                     </div>
                 </div>
@@ -578,7 +578,8 @@
 
             return {
                 infill: analyzeMove('Infill', point.infill, config.accelInfill),
-                wall: analyzeMove('Wall', point.wall, config.accelWall)
+                wall: analyzeMove('Wall', point.wall, config.accelWall),
+                travel: analyzeMove('Travel', point.travel, config.accelTravel)
             };
         }
 
@@ -719,7 +720,8 @@
 
             insightContainer.innerHTML = 
                 createCard("Infill Strategy", analysis.infill, "purple", THEME_COLORS.primary) +
-                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary);
+                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary) +
+                createCard("Travel Strategy", analysis.travel, "blue", THEME_COLORS.chartTravel);
         }
 
         // --- Deep Analysis HTML Generation ---
@@ -812,7 +814,8 @@
 
             analysisContent.innerHTML = 
                 createColumn("Infill", analysis.infill, "layers", THEME_COLORS.primary) +
-                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary);
+                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary) +
+                createColumn("Travel", analysis.travel, "layers", THEME_COLORS.chartTravel);
         }
 
         // Start
