@@ -152,7 +152,7 @@
                                 <i data-lucide="ship" class="w-5 h-5"></i>
                                 Benchy Print Simulation
                             </h3>
-                            <p class="text-slate-400 text-sm">Simulate total print time based on actual Benchy move data.</p>
+                            <p class="text-slate-400 text-sm">Based on simulated Benchy move data. All moves were grouped in 5mm length groups with ceiling rounding, so specified time does not represent real benchy exactly.</p>
                         </div>
                     </div>
 
@@ -327,64 +327,49 @@
         // --- Benchy Data (Embedded) ---
         // Data from benchy_analysis.csv - embedded for single-file deployment
         function loadBenchyData() {
-            const csvData = `length,extrusions,type
-5,588,Bridge
-10,113,Bridge
-15,62,Bridge
-20,72,Bridge
-25,32,Bridge
-30,3,Bridge
-35,9,Bridge
-5,42,Brim
-5,11890,Infill
-10,350,Infill
-15,259,Infill
-20,266,Infill
-25,120,Infill
-30,29,Infill
-5,512,Surface
-10,84,Surface
-15,52,Surface
-20,20,Surface
-25,10,Surface
-30,5,Surface
-5,6956,Travel
-10,526,Travel
-15,775,Travel
-20,292,Travel
-25,174,Travel
-30,93,Travel
-35,44,Travel
-40,42,Travel
-45,12,Travel
-50,6,Travel
-55,3,Travel
-250,1,Travel
-5,74059,Wall
-10,1321,Wall
-15,658,Wall
-20,382,Wall
-25,256,Wall
-30,73,Wall`;
+            // Embedded benchy data as JSON array
+            benchyData = [
+                { length: 5, extrusions: 588, type: 'Bridge' },
+                { length: 10, extrusions: 113, type: 'Bridge' },
+                { length: 15, extrusions: 62, type: 'Bridge' },
+                { length: 20, extrusions: 72, type: 'Bridge' },
+                { length: 25, extrusions: 32, type: 'Bridge' },
+                { length: 30, extrusions: 3, type: 'Bridge' },
+                { length: 35, extrusions: 9, type: 'Bridge' },
+                { length: 5, extrusions: 42, type: 'Brim' },
+                { length: 5, extrusions: 11890, type: 'Infill' },
+                { length: 10, extrusions: 350, type: 'Infill' },
+                { length: 15, extrusions: 259, type: 'Infill' },
+                { length: 20, extrusions: 266, type: 'Infill' },
+                { length: 25, extrusions: 120, type: 'Infill' },
+                { length: 30, extrusions: 29, type: 'Infill' },
+                { length: 5, extrusions: 512, type: 'Surface' },
+                { length: 10, extrusions: 84, type: 'Surface' },
+                { length: 15, extrusions: 52, type: 'Surface' },
+                { length: 20, extrusions: 20, type: 'Surface' },
+                { length: 25, extrusions: 10, type: 'Surface' },
+                { length: 30, extrusions: 5, type: 'Surface' },
+                { length: 5, extrusions: 6956, type: 'Travel' },
+                { length: 10, extrusions: 526, type: 'Travel' },
+                { length: 15, extrusions: 775, type: 'Travel' },
+                { length: 20, extrusions: 292, type: 'Travel' },
+                { length: 25, extrusions: 174, type: 'Travel' },
+                { length: 30, extrusions: 93, type: 'Travel' },
+                { length: 35, extrusions: 44, type: 'Travel' },
+                { length: 40, extrusions: 42, type: 'Travel' },
+                { length: 45, extrusions: 12, type: 'Travel' },
+                { length: 50, extrusions: 6, type: 'Travel' },
+                { length: 55, extrusions: 3, type: 'Travel' },
+                { length: 250, extrusions: 1, type: 'Travel' },
+                { length: 5, extrusions: 74059, type: 'Wall' },
+                { length: 10, extrusions: 1321, type: 'Wall' },
+                { length: 15, extrusions: 658, type: 'Wall' },
+                { length: 20, extrusions: 382, type: 'Wall' },
+                { length: 25, extrusions: 256, type: 'Wall' },
+                { length: 30, extrusions: 73, type: 'Wall' }
+            ];
             
-            try {
-                const lines = csvData.trim().split('\n');
-                
-                // Parse CSV (skip header)
-                benchyData = lines.slice(1).map(line => {
-                    const [length, extrusions, type] = line.split(',');
-                    return {
-                        length: parseFloat(length),
-                        extrusions: parseInt(extrusions),
-                        type: type.trim()
-                    };
-                });
-                
-                console.log(`Loaded ${benchyData.length} benchy data points (embedded)`);
-            } catch (error) {
-                console.error('Failed to parse benchy data:', error);
-                benchyData = [];
-            }
+            console.log(`Loaded ${benchyData.length} benchy data points (embedded)`);
         }
 
         // --- Benchy Simulation ---
@@ -576,8 +561,8 @@
                 );
             });
             
-            // Test combinations with flow
-            [[1.25, 1.25, 1.25], [1.5, 1.5, 1.5]].forEach(([speedMult, accelMult, flowMult]) => {
+            // Test combinations with flow (only +25%, not +50% as it's mostly impossible)
+            [[1.25, 1.25, 1.25]].forEach(([speedMult, accelMult, flowMult]) => {
                 const percent = Math.round((speedMult - 1) * 100);
                 testScenario(
                     `All +${percent}% (Speed/Accel/Flow)`,
