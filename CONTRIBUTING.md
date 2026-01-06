@@ -44,27 +44,6 @@ If you find a bug or have a suggestion for improvement:
 - Keep the physics calculations accurate and well-commented
 - Ensure the UI remains responsive on mobile devices
 
-### What to Contribute
-
-We welcome contributions in these areas:
-
-- **Bug fixes** - Fix calculation errors, UI bugs, or browser compatibility issues
-- **New printer presets** - Add profiles for additional 3D printers
-- **UI improvements** - Enhance usability and visual design
-- **Physics accuracy** - Improve the acceleration and flow simulation models
-- **Documentation** - Improve README, add inline comments, or create guides
-- **Performance** - Optimize calculations or rendering performance
-
-### Printer Preset Contributions
-
-When adding a new printer preset, please include:
-
-- Accurate specifications from manufacturer documentation
-- Nozzle size and typical layer height
-- Maximum volumetric flow rate for the hotend
-- Acceleration values for different move types
-- Typical slicer speed settings
-
 ### Code of Conduct
 
 - Be respectful and constructive in all interactions
