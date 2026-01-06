@@ -149,7 +149,7 @@
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-700 pb-6">
                         <div>
                             <h3 class="font-bold text-xl flex items-center gap-2">
-                                <i data-lucide="ship" class="w-5 h-5" style="color: #ff0213;"></i>
+                                <i data-lucide="ship" class="w-5 h-5"></i>
                                 Benchy Print Simulation
                             </h3>
                             <p class="text-slate-400 text-sm">Simulate total print time based on actual Benchy move data.</p>
@@ -166,13 +166,13 @@
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-700 pb-6">
                         <div>
                             <h3 class="font-bold text-xl flex items-center gap-2">
-                                <i data-lucide="gauge" class="w-5 h-5" style="color: #ff0213;"></i>
+                                <i data-lucide="gauge" class="w-5 h-5"></i>
                                 Deep Move Analysis
                             </h3>
                             <p class="text-slate-400 text-sm">Analyze efficiency for a specific line length.</p>
                         </div>
                         <div class="flex items-center gap-4 bg-slate-700 p-2 rounded-lg w-full md:w-auto">
-                            <span id="analysis-length-display" class="text-sm font-mono w-16" style="color: #ff3341;">50mm</span>
+                            <span id="analysis-length-display" class="text-sm font-mono w-16"></span>
                             <input 
                                 type="range" 
                                 min="5" 
@@ -240,6 +240,10 @@
             warning: '#f59e0b',      // amber-500
             danger: '#ff0213',       // Voron red
             success: '#859900',      // Voron green
+            
+            // Additional UI colors
+            bridgeColor: '#f59e0b',  // amber-500
+            brimColor: '#6366f1',    // indigo-500
             
             // Background colors (matching CSS variables)
             voronDarkBg: '#23272a',  // --voron-dark-bg
@@ -355,10 +359,14 @@
             const volumetricMaxSpeed = config.maxVolumetricSpeed / (area || 0.001);
 
             // Helper to calculate time for a single move
+            // Using trapezoidal velocity profile (triangle for short moves, trapezoid for long moves)
+            // Assumes symmetric acceleration/deceleration from rest to rest
+            // For symmetric profile: distance to peak = length/2, using v² = 2ad gives v_reach
             const calculateMoveTime = (length, targetSpeed, accel, isTravel = false) => {
                 if (accel <= 0) return 0;
                 
-                // Calculate max reachable speed from rest
+                // Calculate max reachable speed from rest with symmetric accel/decel
+                // Using kinematic equation: v² = v₀² + 2ad where v₀ = 0, d = length/2
                 const v_reach = Math.sqrt(2 * accel * (length / 2));
                 
                 // For travel moves, no volumetric flow limit
@@ -564,8 +572,8 @@
                         'Infill': THEME_COLORS.secondary,
                         'Travel': THEME_COLORS.chartTravel,
                         'Surface': THEME_COLORS.accent,
-                        'Bridge': '#f59e0b',
-                        'Brim': '#6366f1'
+                        'Bridge': THEME_COLORS.bridgeColor,
+                        'Brim': THEME_COLORS.brimColor
                     };
                     const color = colors[type] || '#94a3b8';
                     
@@ -608,8 +616,9 @@
                         maxVolumetricSpeed: 'Max Flow'
                     };
                     const label = labels[key] || key;
-                    const unit = key.includes('Speed') && !key.includes('maxVolumetric') ? 'mm/s' : 
-                                 key.includes('accel') ? 'mm/s²' : 'mm³/s';
+                    const unit = key === 'maxVolumetricSpeed' ? 'mm³/s' :
+                                 key.includes('Speed') ? 'mm/s' : 
+                                 key.includes('accel') ? 'mm/s²' : '';
                     return `<span class="text-xs text-slate-400">${label}: ${Math.round(value)}${unit}</span>`;
                 }).join(', ');
                 
@@ -617,7 +626,7 @@
                     <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600 hover:border-slate-500 transition-colors">
                         <div class="flex items-start justify-between mb-3">
                             <div class="flex items-center gap-2">
-                                <i data-lucide="${rec.icon}" width="18" style="color: #ff3341;"></i>
+                                <i data-lucide="${rec.icon}" width="18" style="color: ${THEME_COLORS.primaryLight};"></i>
                                 <h4 class="font-bold text-slate-200">${rec.name}</h4>
                             </div>
                             <div class="px-2 py-1 rounded text-xs font-bold bg-emerald-500/20 text-emerald-300">
@@ -691,7 +700,7 @@
                 <!-- Type Breakdown -->
                 <div class="bg-slate-700/30 p-6 rounded-xl border border-slate-600 mb-6">
                     <h4 class="font-bold text-slate-200 mb-4 flex items-center gap-2">
-                        <i data-lucide="pie-chart" width="18" style="color: #ff3341;"></i>
+                        <i data-lucide="pie-chart" width="18" style="color: ${THEME_COLORS.primaryLight};"></i>
                         Time Breakdown by Move Type
                     </h4>
                     <div class="space-y-3">
@@ -702,7 +711,7 @@
                 <!-- Recommendations -->
                 <div class="bg-slate-700/30 p-6 rounded-xl border border-slate-600">
                     <h4 class="font-bold text-slate-200 mb-4 flex items-center gap-2">
-                        <i data-lucide="lightbulb" width="18" style="color: #ff3341;"></i>
+                        <i data-lucide="lightbulb" width="18" style="color: ${THEME_COLORS.primaryLight};"></i>
                         Recommendations to Speed Up Your Print
                     </h4>
                     <p class="text-sm text-slate-400 mb-4">
@@ -734,6 +743,10 @@
 
             renderInputs();
             initChart();
+            
+            // Initialize analysis display
+            analysisLengthDisplay.textContent = state.analysisLength + 'mm';
+            analysisLengthDisplay.style.color = THEME_COLORS.primaryLight;
             
             // Load benchy data and then update
             loadBenchyData().then(() => {
