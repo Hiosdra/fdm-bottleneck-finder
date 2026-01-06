@@ -324,12 +324,51 @@
         const speedLegend = document.getElementById('speed-legend');
         const benchySimulationContent = document.getElementById('benchy-simulation-content');
 
-        // --- Benchy Data Loading ---
-        async function loadBenchyData() {
+        // --- Benchy Data (Embedded) ---
+        // Data from benchy_analysis.csv - embedded for single-file deployment
+        function loadBenchyData() {
+            const csvData = `length,extrusions,type
+5,588,Bridge
+10,113,Bridge
+15,62,Bridge
+20,72,Bridge
+25,32,Bridge
+30,3,Bridge
+35,9,Bridge
+5,42,Brim
+5,11890,Infill
+10,350,Infill
+15,259,Infill
+20,266,Infill
+25,120,Infill
+30,29,Infill
+5,512,Surface
+10,84,Surface
+15,52,Surface
+20,20,Surface
+25,10,Surface
+30,5,Surface
+5,6956,Travel
+10,526,Travel
+15,775,Travel
+20,292,Travel
+25,174,Travel
+30,93,Travel
+35,44,Travel
+40,42,Travel
+45,12,Travel
+50,6,Travel
+55,3,Travel
+250,1,Travel
+5,74059,Wall
+10,1321,Wall
+15,658,Wall
+20,382,Wall
+25,256,Wall
+30,73,Wall`;
+            
             try {
-                const response = await fetch('benchy_analysis.csv');
-                const text = await response.text();
-                const lines = text.trim().split('\n');
+                const lines = csvData.trim().split('\n');
                 
                 // Parse CSV (skip header)
                 benchyData = lines.slice(1).map(line => {
@@ -341,9 +380,9 @@
                     };
                 });
                 
-                console.log(`Loaded ${benchyData.length} benchy data points`);
+                console.log(`Loaded ${benchyData.length} benchy data points (embedded)`);
             } catch (error) {
-                console.error('Failed to load benchy_analysis.csv:', error);
+                console.error('Failed to parse benchy data:', error);
                 benchyData = [];
             }
         }
@@ -449,89 +488,175 @@
 
             const { config } = state;
             const recommendations = [];
-
-            // Test various improvements
-            const testScenarios = [
-                {
-                    name: 'Increase All Speeds by 50%',
-                    changes: {
-                        speedInfill: config.speedInfill * 1.5,
-                        speedWall: config.speedWall * 1.5,
-                        speedTop: config.speedTop * 1.5,
-                        speedTravel: config.speedTravel * 1.5
-                    },
-                    icon: 'zap'
-                },
-                {
-                    name: 'Double All Accelerations',
-                    changes: {
-                        accelInfill: config.accelInfill * 2,
-                        accelWall: config.accelWall * 2,
-                        accelTop: config.accelTop * 2,
-                        accelTravel: config.accelTravel * 2
-                    },
-                    icon: 'trending-up'
-                },
-                {
-                    name: 'Increase Volumetric Flow by 50%',
-                    changes: {
-                        maxVolumetricSpeed: config.maxVolumetricSpeed * 1.5
-                    },
-                    icon: 'droplet'
-                },
-                {
-                    name: 'Optimize Infill (Speed +100%, Accel +150%)',
-                    changes: {
-                        speedInfill: config.speedInfill * 2,
-                        accelInfill: config.accelInfill * 2.5
-                    },
-                    icon: 'layers'
-                },
-                {
-                    name: 'Balanced Upgrade (All +50%)',
-                    changes: {
-                        speedInfill: config.speedInfill * 1.5,
-                        speedWall: config.speedWall * 1.5,
-                        speedTop: config.speedTop * 1.5,
-                        speedTravel: config.speedTravel * 1.5,
-                        accelInfill: config.accelInfill * 1.5,
-                        accelWall: config.accelWall * 1.5,
-                        accelTop: config.accelTop * 1.5,
-                        accelTravel: config.accelTravel * 1.5,
-                        maxVolumetricSpeed: config.maxVolumetricSpeed * 1.5
-                    },
-                    icon: 'award'
-                }
-            ];
-
-            // Test each scenario
-            testScenarios.forEach(scenario => {
-                // Temporarily apply changes
+            
+            // Helper function to test a scenario
+            const testScenario = (name, changes, icon) => {
                 const oldConfig = { ...config };
-                Object.assign(state.config, scenario.changes);
-                
-                // Simulate
+                Object.assign(state.config, changes);
                 const newSimulation = simulateBenchy();
-                
-                // Restore config
                 state.config = oldConfig;
                 
                 if (newSimulation) {
                     const timeSaved = currentSimulation.totalTime - newSimulation.totalTime;
                     const percentSaved = (timeSaved / currentSimulation.totalTime) * 100;
                     
-                    recommendations.push({
-                        name: scenario.name,
-                        icon: scenario.icon,
-                        timeSaved: timeSaved,
-                        percentSaved: percentSaved,
-                        newTime: newSimulation.totalTime,
-                        changes: scenario.changes
-                    });
+                    // Only include recommendations with meaningful savings (>0.5%)
+                    if (percentSaved > 0.5) {
+                        recommendations.push({
+                            name: name,
+                            icon: icon,
+                            timeSaved: timeSaved,
+                            percentSaved: percentSaved,
+                            newTime: newSimulation.totalTime,
+                            changes: changes
+                        });
+                    }
                 }
+            };
+            
+            // Test incremental speed increases (+10%, +25%, +50%)
+            [1.1, 1.25, 1.5].forEach(multiplier => {
+                const percent = Math.round((multiplier - 1) * 100);
+                testScenario(
+                    `All Speeds +${percent}%`,
+                    {
+                        speedInfill: config.speedInfill * multiplier,
+                        speedWall: config.speedWall * multiplier,
+                        speedTop: config.speedTop * multiplier,
+                        speedTravel: config.speedTravel * multiplier
+                    },
+                    'zap'
+                );
+            });
+            
+            // Test incremental acceleration increases (+10%, +25%, +50%)
+            [1.1, 1.25, 1.5].forEach(multiplier => {
+                const percent = Math.round((multiplier - 1) * 100);
+                testScenario(
+                    `All Accel +${percent}%`,
+                    {
+                        accelInfill: config.accelInfill * multiplier,
+                        accelWall: config.accelWall * multiplier,
+                        accelTop: config.accelTop * multiplier,
+                        accelTravel: config.accelTravel * multiplier
+                    },
+                    'trending-up'
+                );
+            });
+            
+            // Test incremental flow increases (+10%, +25%, +50%)
+            [1.1, 1.25, 1.5].forEach(multiplier => {
+                const percent = Math.round((multiplier - 1) * 100);
+                testScenario(
+                    `Flow +${percent}%`,
+                    {
+                        maxVolumetricSpeed: config.maxVolumetricSpeed * multiplier
+                    },
+                    'droplet'
+                );
+            });
+            
+            // Test combinations of speed + accel
+            [[1.1, 1.1], [1.25, 1.25], [1.5, 1.5]].forEach(([speedMult, accelMult]) => {
+                const speedPercent = Math.round((speedMult - 1) * 100);
+                const accelPercent = Math.round((accelMult - 1) * 100);
+                testScenario(
+                    `Speed +${speedPercent}% & Accel +${accelPercent}%`,
+                    {
+                        speedInfill: config.speedInfill * speedMult,
+                        speedWall: config.speedWall * speedMult,
+                        speedTop: config.speedTop * speedMult,
+                        speedTravel: config.speedTravel * speedMult,
+                        accelInfill: config.accelInfill * accelMult,
+                        accelWall: config.accelWall * accelMult,
+                        accelTop: config.accelTop * accelMult,
+                        accelTravel: config.accelTravel * accelMult
+                    },
+                    'award'
+                );
+            });
+            
+            // Test combinations with flow
+            [[1.25, 1.25, 1.25], [1.5, 1.5, 1.5]].forEach(([speedMult, accelMult, flowMult]) => {
+                const percent = Math.round((speedMult - 1) * 100);
+                testScenario(
+                    `All +${percent}% (Speed/Accel/Flow)`,
+                    {
+                        speedInfill: config.speedInfill * speedMult,
+                        speedWall: config.speedWall * speedMult,
+                        speedTop: config.speedTop * speedMult,
+                        speedTravel: config.speedTravel * speedMult,
+                        accelInfill: config.accelInfill * accelMult,
+                        accelWall: config.accelWall * accelMult,
+                        accelTop: config.accelTop * accelMult,
+                        accelTravel: config.accelTravel * accelMult,
+                        maxVolumetricSpeed: config.maxVolumetricSpeed * flowMult
+                    },
+                    'award'
+                );
+            });
+            
+            // Test per-move-type optimizations
+            // Wall-specific (most time-consuming)
+            [1.25, 1.5].forEach(multiplier => {
+                const percent = Math.round((multiplier - 1) * 100);
+                testScenario(
+                    `Wall Speed +${percent}%`,
+                    { speedWall: config.speedWall * multiplier },
+                    'box'
+                );
+                testScenario(
+                    `Wall Accel +${percent}%`,
+                    { accelWall: config.accelWall * multiplier },
+                    'box'
+                );
+                testScenario(
+                    `Wall Speed & Accel +${percent}%`,
+                    {
+                        speedWall: config.speedWall * multiplier,
+                        accelWall: config.accelWall * multiplier
+                    },
+                    'box'
+                );
+            });
+            
+            // Infill-specific
+            [1.25, 1.5].forEach(multiplier => {
+                const percent = Math.round((multiplier - 1) * 100);
+                testScenario(
+                    `Infill Speed +${percent}%`,
+                    { speedInfill: config.speedInfill * multiplier },
+                    'layers'
+                );
+                testScenario(
+                    `Infill Accel +${percent}%`,
+                    { accelInfill: config.accelInfill * multiplier },
+                    'layers'
+                );
+                testScenario(
+                    `Infill Speed & Accel +${percent}%`,
+                    {
+                        speedInfill: config.speedInfill * multiplier,
+                        accelInfill: config.accelInfill * multiplier
+                    },
+                    'layers'
+                );
+            });
+            
+            // Travel-specific
+            [1.25, 1.5].forEach(multiplier => {
+                const percent = Math.round((multiplier - 1) * 100);
+                testScenario(
+                    `Travel Speed & Accel +${percent}%`,
+                    {
+                        speedTravel: config.speedTravel * multiplier,
+                        accelTravel: config.accelTravel * multiplier
+                    },
+                    'move'
+                );
             });
 
-            // Sort by time saved (descending)
+            // Sort by time saved (descending) and take top recommendations
             recommendations.sort((a, b) => b.timeSaved - a.timeSaved);
 
             return recommendations;
@@ -595,8 +720,8 @@
                     `;
                 }).join('');
 
-            // Create recommendations HTML
-            const recommendationsHTML = recommendations.slice(0, 5).map(rec => {
+            // Create recommendations HTML (show top 12 most effective)
+            const recommendationsHTML = recommendations.slice(0, 12).map(rec => {
                 const mins = Math.floor(rec.newTime / 60);
                 const secs = Math.floor(rec.newTime % 60);
                 const savedMins = Math.floor(rec.timeSaved / 60);
@@ -748,10 +873,9 @@
             analysisLengthDisplay.textContent = state.analysisLength + 'mm';
             analysisLengthDisplay.style.color = THEME_COLORS.primaryLight;
             
-            // Load benchy data and then update
-            loadBenchyData().then(() => {
-                update();
-            });
+            // Load benchy data (now synchronous with embedded data)
+            loadBenchyData();
+            update();
             
             // Event Listeners
             analysisSlider.addEventListener('input', (e) => {
