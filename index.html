@@ -144,6 +144,23 @@
                     <!-- Cards injected by JS -->
                 </div>
 
+                <!-- Benchy Simulation Section -->
+                <div class="voron-card text-white p-6 rounded-xl shadow-lg border border-slate-700">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-700 pb-6">
+                        <div>
+                            <h3 class="font-bold text-xl flex items-center gap-2">
+                                <i data-lucide="ship" class="w-5 h-5" style="color: #ff0213;"></i>
+                                Benchy Print Simulation
+                            </h3>
+                            <p class="text-slate-400 text-sm">Simulate total print time based on actual Benchy move data.</p>
+                        </div>
+                    </div>
+
+                    <div id="benchy-simulation-content">
+                        <!-- Benchy simulation results injected here -->
+                    </div>
+                </div>
+
                 <!-- Deep Analysis Section -->
                 <div class="voron-card text-white p-6 rounded-xl shadow-lg border border-slate-700">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-700 pb-6">
@@ -290,6 +307,7 @@
         // --- State Management ---
         let state = JSON.parse(JSON.stringify(defaultState));
         let chartInstance = null;
+        let benchyData = []; // Will hold loaded benchy CSV data
 
         // --- DOM Elements ---
         const inputContainer = document.getElementById('input-container');
@@ -300,6 +318,405 @@
         const btnSpeed = document.getElementById('btn-mode-speed');
         const btnFlow = document.getElementById('btn-mode-flow');
         const speedLegend = document.getElementById('speed-legend');
+        const benchySimulationContent = document.getElementById('benchy-simulation-content');
+
+        // --- Benchy Data Loading ---
+        async function loadBenchyData() {
+            try {
+                const response = await fetch('benchy_analysis.csv');
+                const text = await response.text();
+                const lines = text.trim().split('\n');
+                
+                // Parse CSV (skip header)
+                benchyData = lines.slice(1).map(line => {
+                    const [length, extrusions, type] = line.split(',');
+                    return {
+                        length: parseFloat(length),
+                        extrusions: parseInt(extrusions),
+                        type: type.trim()
+                    };
+                });
+                
+                console.log(`Loaded ${benchyData.length} benchy data points`);
+            } catch (error) {
+                console.error('Failed to load benchy_analysis.csv:', error);
+                benchyData = [];
+            }
+        }
+
+        // --- Benchy Simulation ---
+        function simulateBenchy() {
+            if (benchyData.length === 0) {
+                return null;
+            }
+
+            const { config } = state;
+            const area = config.layerHeight * config.lineWidth;
+            const volumetricMaxSpeed = config.maxVolumetricSpeed / (area || 0.001);
+
+            // Helper to calculate time for a single move
+            const calculateMoveTime = (length, targetSpeed, accel, isTravel = false) => {
+                if (accel <= 0) return 0;
+                
+                // Calculate max reachable speed from rest
+                const v_reach = Math.sqrt(2 * accel * (length / 2));
+                
+                // For travel moves, no volumetric flow limit
+                const v_peak = isTravel 
+                    ? Math.min(targetSpeed, v_reach)
+                    : Math.min(targetSpeed, volumetricMaxSpeed, v_reach);
+                
+                // Time to accelerate from 0 to v_peak
+                const t_acc = v_peak / accel;
+                
+                // Distance covered during acceleration
+                const d_acc = (v_peak * v_peak) / (2 * accel);
+                
+                // Cruise phase
+                let t_cru = 0;
+                if (d_acc * 2 < length) {
+                    t_cru = (length - d_acc * 2) / v_peak;
+                }
+                
+                // Total time: acceleration + cruise + deceleration
+                return (t_acc * 2) + t_cru;
+            };
+
+            // Simulate all moves
+            let totalTime = 0;
+            const typeBreakdown = {
+                'Bridge': { time: 0, count: 0 },
+                'Brim': { time: 0, count: 0 },
+                'Infill': { time: 0, count: 0 },
+                'Surface': { time: 0, count: 0 },
+                'Travel': { time: 0, count: 0 },
+                'Wall': { time: 0, count: 0 }
+            };
+
+            benchyData.forEach(move => {
+                let moveTime = 0;
+                const count = move.extrusions;
+                
+                // Map move type to config
+                switch (move.type) {
+                    case 'Bridge':
+                        // Bridges typically use slower speeds like walls
+                        moveTime = calculateMoveTime(move.length, config.speedWall, config.accelWall);
+                        break;
+                    case 'Brim':
+                        // Brim uses wall-like speeds
+                        moveTime = calculateMoveTime(move.length, config.speedWall, config.accelWall);
+                        break;
+                    case 'Infill':
+                        moveTime = calculateMoveTime(move.length, config.speedInfill, config.accelInfill);
+                        break;
+                    case 'Surface':
+                        // Surface (top/bottom) uses top speed
+                        moveTime = calculateMoveTime(move.length, config.speedTop, config.accelTop);
+                        break;
+                    case 'Travel':
+                        moveTime = calculateMoveTime(move.length, config.speedTravel, config.accelTravel, true);
+                        break;
+                    case 'Wall':
+                        moveTime = calculateMoveTime(move.length, config.speedWall, config.accelWall);
+                        break;
+                }
+                
+                const typeTotalTime = moveTime * count;
+                totalTime += typeTotalTime;
+                typeBreakdown[move.type].time += typeTotalTime;
+                typeBreakdown[move.type].count += count;
+            });
+
+            return {
+                totalTime,
+                typeBreakdown,
+                totalMoves: benchyData.reduce((sum, m) => sum + m.extrusions, 0)
+            };
+        }
+
+        // --- Benchy Recommendations ---
+        function generateBenchyRecommendations(currentSimulation) {
+            if (!currentSimulation) return [];
+
+            const { config } = state;
+            const recommendations = [];
+
+            // Test various improvements
+            const testScenarios = [
+                {
+                    name: 'Increase All Speeds by 50%',
+                    changes: {
+                        speedInfill: config.speedInfill * 1.5,
+                        speedWall: config.speedWall * 1.5,
+                        speedTop: config.speedTop * 1.5,
+                        speedTravel: config.speedTravel * 1.5
+                    },
+                    icon: 'zap'
+                },
+                {
+                    name: 'Double All Accelerations',
+                    changes: {
+                        accelInfill: config.accelInfill * 2,
+                        accelWall: config.accelWall * 2,
+                        accelTop: config.accelTop * 2,
+                        accelTravel: config.accelTravel * 2
+                    },
+                    icon: 'trending-up'
+                },
+                {
+                    name: 'Increase Volumetric Flow by 50%',
+                    changes: {
+                        maxVolumetricSpeed: config.maxVolumetricSpeed * 1.5
+                    },
+                    icon: 'droplet'
+                },
+                {
+                    name: 'Optimize Infill (Speed +100%, Accel +150%)',
+                    changes: {
+                        speedInfill: config.speedInfill * 2,
+                        accelInfill: config.accelInfill * 2.5
+                    },
+                    icon: 'layers'
+                },
+                {
+                    name: 'Balanced Upgrade (All +50%)',
+                    changes: {
+                        speedInfill: config.speedInfill * 1.5,
+                        speedWall: config.speedWall * 1.5,
+                        speedTop: config.speedTop * 1.5,
+                        speedTravel: config.speedTravel * 1.5,
+                        accelInfill: config.accelInfill * 1.5,
+                        accelWall: config.accelWall * 1.5,
+                        accelTop: config.accelTop * 1.5,
+                        accelTravel: config.accelTravel * 1.5,
+                        maxVolumetricSpeed: config.maxVolumetricSpeed * 1.5
+                    },
+                    icon: 'award'
+                }
+            ];
+
+            // Test each scenario
+            testScenarios.forEach(scenario => {
+                // Temporarily apply changes
+                const oldConfig = { ...config };
+                Object.assign(state.config, scenario.changes);
+                
+                // Simulate
+                const newSimulation = simulateBenchy();
+                
+                // Restore config
+                state.config = oldConfig;
+                
+                if (newSimulation) {
+                    const timeSaved = currentSimulation.totalTime - newSimulation.totalTime;
+                    const percentSaved = (timeSaved / currentSimulation.totalTime) * 100;
+                    
+                    recommendations.push({
+                        name: scenario.name,
+                        icon: scenario.icon,
+                        timeSaved: timeSaved,
+                        percentSaved: percentSaved,
+                        newTime: newSimulation.totalTime,
+                        changes: scenario.changes
+                    });
+                }
+            });
+
+            // Sort by time saved (descending)
+            recommendations.sort((a, b) => b.timeSaved - a.timeSaved);
+
+            return recommendations;
+        }
+
+        // --- Update Benchy Simulation Display ---
+        function updateBenchySimulation() {
+            if (benchyData.length === 0) {
+                benchySimulationContent.innerHTML = `
+                    <div class="text-center text-slate-400 py-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                        <p>Unable to load benchy_analysis.csv</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const simulation = simulateBenchy();
+            if (!simulation) return;
+
+            const recommendations = generateBenchyRecommendations(simulation);
+
+            const minutes = Math.floor(simulation.totalTime / 60);
+            const seconds = Math.floor(simulation.totalTime % 60);
+
+            // Create type breakdown HTML
+            const typeBreakdownHTML = Object.entries(simulation.typeBreakdown)
+                .filter(([type, data]) => data.count > 0)
+                .sort((a, b) => b[1].time - a[1].time)
+                .map(([type, data]) => {
+                    const percent = (data.time / simulation.totalTime) * 100;
+                    const mins = Math.floor(data.time / 60);
+                    const secs = Math.floor(data.time % 60);
+                    
+                    // Color coding by type
+                    const colors = {
+                        'Wall': THEME_COLORS.primary,
+                        'Infill': THEME_COLORS.secondary,
+                        'Travel': THEME_COLORS.chartTravel,
+                        'Surface': THEME_COLORS.accent,
+                        'Bridge': '#f59e0b',
+                        'Brim': '#6366f1'
+                    };
+                    const color = colors[type] || '#94a3b8';
+                    
+                    return `
+                        <div class="flex items-center justify-between text-sm">
+                            <div class="flex items-center gap-2 flex-1">
+                                <div class="w-3 h-3 rounded" style="background-color: ${color}"></div>
+                                <span class="text-slate-300">${type}</span>
+                                <span class="text-slate-500 text-xs">(${data.count} moves)</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-32 bg-slate-600 rounded-full h-2 overflow-hidden">
+                                    <div class="h-full rounded-full" style="width: ${percent}%; background-color: ${color}"></div>
+                                </div>
+                                <span class="text-slate-300 font-mono text-xs w-20 text-right">${mins}m ${secs}s</span>
+                                <span class="text-slate-500 text-xs w-12 text-right">${percent.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            // Create recommendations HTML
+            const recommendationsHTML = recommendations.slice(0, 5).map(rec => {
+                const mins = Math.floor(rec.newTime / 60);
+                const secs = Math.floor(rec.newTime % 60);
+                const savedMins = Math.floor(rec.timeSaved / 60);
+                const savedSecs = Math.floor(rec.timeSaved % 60);
+                
+                // Generate changes list
+                const changesList = Object.entries(rec.changes).map(([key, value]) => {
+                    const labels = {
+                        speedInfill: 'Infill Speed',
+                        speedWall: 'Wall Speed',
+                        speedTop: 'Top Speed',
+                        speedTravel: 'Travel Speed',
+                        accelInfill: 'Infill Accel',
+                        accelWall: 'Wall Accel',
+                        accelTop: 'Top Accel',
+                        accelTravel: 'Travel Accel',
+                        maxVolumetricSpeed: 'Max Flow'
+                    };
+                    const label = labels[key] || key;
+                    const unit = key.includes('Speed') && !key.includes('maxVolumetric') ? 'mm/s' : 
+                                 key.includes('accel') ? 'mm/s²' : 'mm³/s';
+                    return `<span class="text-xs text-slate-400">${label}: ${Math.round(value)}${unit}</span>`;
+                }).join(', ');
+                
+                return `
+                    <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600 hover:border-slate-500 transition-colors">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${rec.icon}" width="18" style="color: #ff3341;"></i>
+                                <h4 class="font-bold text-slate-200">${rec.name}</h4>
+                            </div>
+                            <div class="px-2 py-1 rounded text-xs font-bold bg-emerald-500/20 text-emerald-300">
+                                -${rec.percentSaved.toFixed(1)}%
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-400">New Time:</span>
+                                <span class="font-bold text-slate-200">${mins}m ${secs}s</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-400">Time Saved:</span>
+                                <span class="font-bold text-emerald-400">${savedMins}m ${savedSecs}s</span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-600 text-xs text-slate-400">
+                                ${changesList}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            benchySimulationContent.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Total Time Card -->
+                    <div class="bg-gradient-to-br from-red-500/20 to-transparent p-6 rounded-xl border border-red-500/30">
+                        <div class="flex items-center gap-2 text-red-300 text-sm mb-2">
+                            <i data-lucide="clock" width="16"></i>
+                            <span class="uppercase tracking-wider font-semibold">Total Print Time</span>
+                        </div>
+                        <div class="text-4xl font-bold text-white mb-1">
+                            ${minutes}<span class="text-2xl text-slate-400">m</span> ${seconds}<span class="text-2xl text-slate-400">s</span>
+                        </div>
+                        <div class="text-sm text-slate-400">≈ ${(simulation.totalTime / 60).toFixed(1)} minutes</div>
+                    </div>
+
+                    <!-- Total Moves Card -->
+                    <div class="bg-slate-700/50 p-6 rounded-xl border border-slate-600">
+                        <div class="flex items-center gap-2 text-slate-400 text-sm mb-2">
+                            <i data-lucide="move" width="16"></i>
+                            <span class="uppercase tracking-wider font-semibold">Total Moves</span>
+                        </div>
+                        <div class="text-4xl font-bold text-white mb-1">${simulation.totalMoves.toLocaleString()}</div>
+                        <div class="text-sm text-slate-400">Individual extrusions</div>
+                    </div>
+
+                    <!-- Slowest Type Card -->
+                    <div class="bg-slate-700/50 p-6 rounded-xl border border-slate-600">
+                        <div class="flex items-center gap-2 text-slate-400 text-sm mb-2">
+                            <i data-lucide="alert-triangle" width="16"></i>
+                            <span class="uppercase tracking-wider font-semibold">Slowest Type</span>
+                        </div>
+                        ${(() => {
+                            const slowest = Object.entries(simulation.typeBreakdown)
+                                .filter(([type, data]) => data.count > 0)
+                                .sort((a, b) => b[1].time - a[1].time)[0];
+                            if (slowest) {
+                                const [type, data] = slowest;
+                                const percent = (data.time / simulation.totalTime) * 100;
+                                return `
+                                    <div class="text-3xl font-bold text-white mb-1">${type}</div>
+                                    <div class="text-sm text-slate-400">${percent.toFixed(1)}% of total time</div>
+                                `;
+                            }
+                            return '<div class="text-slate-500">N/A</div>';
+                        })()}
+                    </div>
+                </div>
+
+                <!-- Type Breakdown -->
+                <div class="bg-slate-700/30 p-6 rounded-xl border border-slate-600 mb-6">
+                    <h4 class="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                        <i data-lucide="pie-chart" width="18" style="color: #ff3341;"></i>
+                        Time Breakdown by Move Type
+                    </h4>
+                    <div class="space-y-3">
+                        ${typeBreakdownHTML}
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="bg-slate-700/30 p-6 rounded-xl border border-slate-600">
+                    <h4 class="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                        <i data-lucide="lightbulb" width="18" style="color: #ff3341;"></i>
+                        Recommendations to Speed Up Your Print
+                    </h4>
+                    <p class="text-sm text-slate-400 mb-4">
+                        These upgrades show potential time savings based on your current configuration. 
+                        Results assume your printer hardware can handle the increased speeds and accelerations.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${recommendationsHTML}
+                    </div>
+                </div>
+            `;
+            
+            lucide.createIcons();
+        }
 
         // --- Initialization ---
         function init() {
@@ -317,7 +734,11 @@
 
             renderInputs();
             initChart();
-            update();
+            
+            // Load benchy data and then update
+            loadBenchyData().then(() => {
+                update();
+            });
             
             // Event Listeners
             analysisSlider.addEventListener('input', (e) => {
@@ -673,6 +1094,7 @@
             updateChart(calculations);
             updateInsights(analysis);
             updateDeepAnalysis(analysis, calculations.area);
+            updateBenchySimulation();
             
             lucide.createIcons();
         }
