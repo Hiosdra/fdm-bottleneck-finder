@@ -460,14 +460,17 @@
                 typeBreakdown[move.type].count += count;
             });
 
-            // Apply correction factor: real Benchy times are approximately 1/3 of simulated times
-            // due to grouped move data with ceiling rounding
-            const correctionFactor = 1/3;
-            totalTime *= correctionFactor;
+            // Apply empirical correction factor
+            // The simulation overestimates time by ~3x due to:
+            // 1. Move data grouped in 5mm buckets with ceiling rounding (adds artificial distance)
+            // 2. Conservative acceleration profiles from rest to rest for each move
+            // Real-world testing shows actual Benchy prints take ~1/3 of simulated time
+            const BENCHY_TIME_CORRECTION = 1/3;
+            totalTime *= BENCHY_TIME_CORRECTION;
             
-            // Apply same correction to type breakdowns
+            // Apply same correction to type breakdowns to maintain proportional accuracy
             for (const type in typeBreakdown) {
-                typeBreakdown[type].time *= correctionFactor;
+                typeBreakdown[type].time *= BENCHY_TIME_CORRECTION;
             }
 
             return {
