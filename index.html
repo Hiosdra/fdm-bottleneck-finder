@@ -15,68 +15,245 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        /* Custom styles for range input to match the Voron Design theme */
+        /* ===== CSS Variables - Design System ===== */
         :root {
+            /* Primary Colors - Voron Design Theme */
             --color-primary: #ff0213;
-            --color-track: #475569;
+            --color-primary-light: #ff3341;
+            --color-primary-hover: rgba(255, 2, 19, 0.5);
+            --color-primary-border: rgba(255, 2, 19, 0.3);
+            --color-primary-subtle: rgba(255, 2, 19, 0.2);
+
+            /* Secondary Colors */
+            --color-secondary: #268bd2;
+            --color-secondary-light: #60A5FA;
+            --color-accent: #859900;
+
+            /* Background Colors */
             --voron-dark-bg: #23272a;
             --voron-card-bg: #2c2f33;
+            --color-slate-400: #94a3b8;
+            --color-slate-600: #475569;
+            --color-slate-700: #334155;
+
+            /* Chart Colors */
+            --color-chart-travel: #A855F7;
+
+            /* State Colors */
+            --color-warning: #f59e0b;
+            --color-success: #859900;
+
+            /* Badge Colors */
+            --badge-acceleration-bg: rgba(245, 158, 11, 0.2);
+            --badge-acceleration-text: #fcd34d;
+            --badge-flow-bg: rgba(255, 2, 19, 0.2);
+            --badge-flow-text: #fca5a5;
+            --badge-speed-bg: rgba(133, 153, 0, 0.2);
+            --badge-speed-text: #bef264;
         }
-        
+
+        /* ===== Base Styles ===== */
+        body {
+            background-color: var(--voron-card-bg);
+        }
+
+        /* ===== Card Components ===== */
         .voron-card {
             background-color: var(--voron-dark-bg);
         }
-        
-        /* Update focus rings to use Voron red */
-        input:focus, select:focus {
-            outline: 2px solid #ff0213;
-            outline-offset: 2px;
-            border-color: #ff0213 !important;
+
+        .card-border-primary {
+            border-color: var(--color-primary-border);
         }
-        
-        /* Update hover states */
-        input:hover, select:hover {
-            border-color: rgba(255, 2, 19, 0.5) !important;
+
+        .card-border-subtle {
+            border-color: var(--color-primary-subtle);
         }
-        
-        /* Reset button hover */
+
+        /* ===== Icon Colors ===== */
+        .icon-primary {
+            color: var(--color-primary);
+        }
+
+        .icon-primary-light {
+            color: var(--color-primary-light);
+        }
+
+        /* ===== Button States ===== */
+        .btn-mode {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            color: white;
+        }
+
+        .btn-mode-active {
+            background-color: var(--color-primary);
+        }
+
+        .btn-mode-inactive {
+            color: var(--color-slate-400);
+            background-color: transparent;
+        }
+
+        .btn-mode-inactive:hover {
+            background-color: var(--color-slate-700);
+        }
+
+        .reset-btn {
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            transition: color 0.2s ease-in-out;
+        }
+
         .reset-btn:hover {
-            color: #ff0213 !important;
+            color: var(--color-primary);
         }
+
+        /* ===== Form Input States ===== */
+        input:focus, select:focus {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+            border-color: var(--color-primary);
+        }
+
+        input:hover, select:hover {
+            border-color: var(--color-primary-hover);
+        }
+
+        /* ===== Range Input Styling ===== */
         input[type=range] {
-            -webkit-appearance: none; 
-            background: transparent; 
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            accent-color: var(--color-primary);
         }
+
+        /* Chrome, Safari, Edge */
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
+            appearance: none;
             height: 16px;
             width: 16px;
             border-radius: 50%;
             background: var(--color-primary);
             margin-top: -6px;
             cursor: pointer;
+            transition: transform 0.2s ease-in-out;
         }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: var(--color-track);
+            background: var(--color-slate-600);
             border-radius: 2px;
         }
+
+        /* Firefox */
+        input[type=range]::-moz-range-thumb {
+            height: 16px;
+            width: 16px;
+            border: none;
+            border-radius: 50%;
+            background: var(--color-primary);
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        input[type=range]::-moz-range-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: var(--color-slate-600);
+            border-radius: 2px;
+        }
+
+        /* ===== Animations ===== */
         .gauge-circle {
             transition: stroke-dasharray 0.5s ease-out;
         }
+
+        /* ===== Legend Elements ===== */
+        .legend-line {
+            width: 2rem;
+            height: 0.125rem;
+            border-top-width: 1px;
+            border-style: dashed;
+            display: inline-block;
+            border-color: var(--color-primary);
+            background-color: var(--color-primary);
+        }
+
+        /* ===== Card Border Colors ===== */
+        .card-border-infill {
+            border-left-color: var(--color-primary);
+        }
+
+        .card-border-wall {
+            border-left-color: var(--color-secondary);
+        }
+
+        .card-border-travel {
+            border-left-color: var(--color-chart-travel);
+        }
+
+        /* ===== Insight Icon Colors ===== */
+        .insight-icon-lightbulb {
+            color: var(--color-primary-light);
+        }
+
+        /* ===== Analysis Column Colors ===== */
+        .analysis-title-infill {
+            color: var(--color-primary-light);
+        }
+
+        .analysis-title-wall {
+            color: var(--color-secondary-light);
+        }
+
+        .analysis-title-travel {
+            color: var(--color-secondary-light);
+        }
+
+        /* ===== Limit Badge Colors ===== */
+        .limit-badge-acceleration {
+            background-color: var(--badge-acceleration-bg);
+            color: var(--badge-acceleration-text);
+        }
+
+        .limit-badge-flow {
+            background-color: var(--badge-flow-bg);
+            color: var(--badge-flow-text);
+        }
+
+        .limit-badge-speed {
+            background-color: var(--badge-speed-bg);
+            color: var(--badge-speed-text);
+        }
     </style>
 </head>
-<body class="font-sans text-slate-100 min-h-screen p-4 md:p-8" style="background-color: #2c2f33;">
+<body class="font-sans text-slate-100 min-h-screen p-4 md:p-8">
 
     <div class="max-w-7xl mx-auto">
-        
+
         <!-- Header -->
         <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-slate-100 flex items-center gap-3">
-                    <i data-lucide="activity" style="color: #ff0213;"></i>
+                    <i data-lucide="activity" class="icon-primary"></i>
                     3D Printer Bottleneck Finder
                 </h1>
                 <p class="text-slate-300 mt-2 max-w-2xl text-sm md:text-base">
@@ -96,8 +273,8 @@
             <div class="lg:col-span-4 space-y-4 h-fit">
                 
                 <!-- Preset Selector -->
-                <div class="voron-card p-4 rounded-xl border" style="border-color: rgba(255, 2, 19, 0.3);">
-                    <div class="flex items-center gap-2 mb-3 font-semibold text-sm uppercase tracking-wide" style="color: #ff3341;">
+                <div class="voron-card p-4 rounded-xl border card-border-primary">
+                    <div class="flex items-center gap-2 mb-3 font-semibold text-sm uppercase tracking-wide icon-primary-light">
                         <i data-lucide="printer" width="16"></i> Load Preset
                     </div>
                     <select id="preset-selector" onchange="loadPreset(this.value)" class="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer">
@@ -122,15 +299,15 @@
                 <div class="voron-card p-6 rounded-xl shadow-sm border border-slate-700">
                     <div class="flex justify-between items-center mb-6">
                         <div class="flex gap-4">
-                            <button onclick="setGraphMode('speed')" id="btn-mode-speed" class="px-3 py-1 rounded-full text-sm font-medium transition-colors text-white" style="background-color: #ff0213;">
+                            <button onclick="setGraphMode('speed')" id="btn-mode-speed" class="btn-mode btn-mode-active">
                                 Speed (mm/s)
                             </button>
-                            <button onclick="setGraphMode('flow')" id="btn-mode-flow" class="px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-400 hover:bg-slate-700">
+                            <button onclick="setGraphMode('flow')" id="btn-mode-flow" class="btn-mode btn-mode-inactive">
                                 Flow (mm³/s)
                             </button>
                         </div>
                         <div id="speed-legend" class="flex items-center gap-2 text-sm text-slate-400">
-                            <span class="w-8 h-0.5 border-t border-dashed inline-block" style="border-color: #ff0213; background-color: #ff0213;"></span> Max Volumetric Cap
+                            <span class="legend-line"></span> Max Volumetric Cap
                         </div>
                     </div>
                     
@@ -149,22 +326,21 @@
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-700 pb-6">
                         <div>
                             <h3 class="font-bold text-xl flex items-center gap-2">
-                                <i data-lucide="gauge" class="w-5 h-5" style="color: #ff0213;"></i>
+                                <i data-lucide="gauge" class="w-5 h-5 icon-primary"></i>
                                 Deep Move Analysis
                             </h3>
                             <p class="text-slate-400 text-sm">Analyze efficiency for a specific line length.</p>
                         </div>
                         <div class="flex items-center gap-4 bg-slate-700 p-2 rounded-lg w-full md:w-auto">
-                            <span id="analysis-length-display" class="text-sm font-mono w-16" style="color: #ff3341;">50mm</span>
-                            <input 
-                                type="range" 
-                                min="5" 
-                                max="200" 
+                            <span id="analysis-length-display" class="text-sm font-mono w-16 icon-primary-light">50mm</span>
+                            <input
+                                type="range"
+                                min="5"
+                                max="200"
                                 step="5"
-                                value="50" 
+                                value="50"
                                 id="analysis-slider"
                                 class="w-full md:w-48 cursor-pointer"
-                                style="accent-color: #ff0213;"
                             >
                         </div>
                     </div>
@@ -179,7 +355,7 @@
     </div>
 
     <!-- Footer -->
-    <footer class="mt-12 py-6 border-t" style="border-color: rgba(255, 2, 19, 0.2);">
+    <footer class="mt-12 py-6 border-t card-border-subtle">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-400">
                 <div class="flex items-center gap-2">
@@ -354,16 +530,16 @@
         function setGraphMode(mode) {
             state.graphMode = mode;
             if (mode === 'speed') {
-                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-white";
-                btnSpeed.style.backgroundColor = '#ff0213';
-                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-400 hover:bg-slate-700";
-                btnFlow.style.backgroundColor = '';
+                btnSpeed.classList.add('btn-mode-active');
+                btnSpeed.classList.remove('btn-mode-inactive');
+                btnFlow.classList.add('btn-mode-inactive');
+                btnFlow.classList.remove('btn-mode-active');
                 speedLegend.style.display = 'flex';
             } else {
-                btnFlow.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-white";
-                btnFlow.style.backgroundColor = '#ff0213';
-                btnSpeed.className = "px-3 py-1 rounded-full text-sm font-medium transition-colors text-slate-400 hover:bg-slate-700";
-                btnSpeed.style.backgroundColor = '';
+                btnFlow.classList.add('btn-mode-active');
+                btnFlow.classList.remove('btn-mode-inactive');
+                btnSpeed.classList.add('btn-mode-inactive');
+                btnSpeed.classList.remove('btn-mode-active');
                 speedLegend.style.display = 'none';
             }
             update();
@@ -769,20 +945,22 @@
 
         // --- Insights HTML Generation ---
         function updateInsights(analysis) {
-            const createCard = (title, data, colorClass, borderColor) => `
-                <div class="voron-card p-4 rounded-xl border-l-4 shadow-sm" style="border-color: ${borderColor}">
+            const createCard = (title, data, cardType) => {
+                const cardBorderClass = `card-border-${cardType}`;
+                return `
+                <div class="voron-card p-4 rounded-xl border-l-4 shadow-sm ${cardBorderClass}">
                     <div class="flex justify-between items-start mb-2">
                         <h4 class="font-bold text-slate-200">${title}</h4>
                         <span class="text-xs font-mono bg-slate-700 px-2 py-1 rounded text-slate-300">Current: ${Math.round(data.speed)}mm/s</span>
                     </div>
-                    
+
                     <div class="text-sm text-slate-300 mb-3">
                         Limiting Factor: <strong class="text-slate-100">${data.factor}</strong>
                     </div>
 
                     <div class="bg-slate-700/50 rounded-lg p-3">
                         <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                            <i data-lucide="lightbulb" width="12" style="color: #ff3341;"></i>
+                            <i data-lucide="lightbulb" width="12" class="insight-icon-lightbulb"></i>
                             Time Savings Strategy
                         </div>
                         <div class="space-y-2">
@@ -799,39 +977,52 @@
                     </div>
                 </div>
             `;
+            };
 
-            insightContainer.innerHTML = 
-                createCard("Infill Strategy", analysis.infill, "purple", THEME_COLORS.primary) +
-                createCard("Wall Strategy", analysis.wall, "green", THEME_COLORS.secondary) +
-                createCard("Travel Strategy", analysis.travel, "blue", THEME_COLORS.chartTravel);
+            insightContainer.innerHTML =
+                createCard("Infill Strategy", analysis.infill, "infill") +
+                createCard("Wall Strategy", analysis.wall, "wall") +
+                createCard("Travel Strategy", analysis.travel, "travel");
         }
 
         // --- Deep Analysis HTML Generation ---
         function updateDeepAnalysis(analysis, area) {
-            const createColumn = (title, data, icon, colorHex, badgeColorClass) => {
-                const limitColorClass = data.factor === 'Acceleration' ? 'bg-amber-500/20 text-amber-300' :
-                                      data.factor === 'Volumetric Flow' ? 'text-red-300' : 
-                                      'text-green-300';
-                const limitBgColor = data.factor === 'Volumetric Flow' ? hexToRgba(THEME_COLORS.primary, 0.2) : 
-                                     data.factor === 'Acceleration' ? '' : hexToRgba(THEME_COLORS.accent, 0.2);
-                const limitStyle = limitBgColor ? `background-color: ${limitBgColor};` : '';
-                
+            // Get colors from CSS variables for consistency
+            const rootStyles = getComputedStyle(document.documentElement);
+            const colorPrimary = rootStyles.getPropertyValue('--color-primary').trim();
+            const colorSecondary = rootStyles.getPropertyValue('--color-secondary').trim();
+            const colorChartTravel = rootStyles.getPropertyValue('--color-chart-travel').trim();
+
+            const createColumn = (title, data, columnType) => {
+                // Determine badge class based on limiting factor
+                let limitBadgeClass = 'limit-badge-speed';
+                if (data.factor === 'Acceleration') {
+                    limitBadgeClass = 'limit-badge-acceleration';
+                } else if (data.factor === 'Volumetric Flow') {
+                    limitBadgeClass = 'limit-badge-flow';
+                }
+
+                const titleClass = `analysis-title-${columnType}`;
+                const gaugeColor = columnType === 'infill' ? colorPrimary :
+                                  columnType === 'wall' ? colorSecondary :
+                                  colorChartTravel;
+
                 const idealPercent = (data.idealTime / Math.max(data.realTime, 0.01)) * 100;
                 const lostPercent = 100 - idealPercent;
 
                 return `
                 <div class="space-y-4">
-                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm" style="color: ${colorHex === THEME_COLORS.primary ? THEME_COLORS.primaryLight : THEME_COLORS.secondaryLight}">
+                    <div class="flex items-center gap-2 font-bold uppercase tracking-wider text-sm ${titleClass}">
                         <i data-lucide="layers" width="16"></i> ${title} Analysis
                     </div>
-                    
+
                     <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600 grid grid-cols-2 gap-4">
                         <div class="col-span-2 flex justify-between items-center border-b border-slate-600 pb-3 mb-1">
                             <div>
                                 <div class="text-3xl font-bold">${Math.round(data.speed)} <span class="text-sm text-slate-400 font-normal">mm/s</span></div>
                                 <div class="text-xs text-slate-400">Achieved Speed</div>
                             </div>
-                            <div class="px-2 py-1 rounded text-xs font-bold ${limitColorClass}" style="${limitStyle}">
+                            <div class="px-2 py-1 rounded text-xs font-bold ${limitBadgeClass}">
                                 Limit: ${data.factor}
                             </div>
                         </div>
@@ -842,7 +1033,7 @@
                                 <div class="relative w-20 h-20">
                                     <svg class="w-full h-full" viewBox="0 0 36 36">
                                         <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" stroke-width="3" />
-                                        <path class="gauge-circle" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${colorHex}" stroke-width="3" stroke-dasharray="${data.efficiency}, 100" />
+                                        <path class="gauge-circle" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${gaugeColor}" stroke-width="3" stroke-dasharray="${data.efficiency}, 100" />
                                     </svg>
                                     <div class="absolute inset-0 flex items-center justify-center font-bold text-sm text-slate-300">
                                         ${Math.round(data.efficiency)}%
@@ -851,7 +1042,7 @@
                                 <span class="text-xs font-medium text-slate-400 mt-1">Speed Eff.</span>
                             </div>
                         </div>
-                        
+
                         <div class="space-y-2 text-xs text-slate-300">
                             <div class="flex justify-between">
                                 <span class="text-slate-400">Flow:</span>
@@ -863,7 +1054,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Time Bar -->
                     <div class="bg-slate-700/30 p-4 rounded-xl border border-slate-600/50">
                         <div class="flex items-center gap-2 text-slate-400 text-xs mb-2">
@@ -883,7 +1074,7 @@
                                 <span>Lost: ${(data.realTime - data.idealTime).toFixed(3)}s</span>
                             </div>
                         </div>
-                        
+
                         ${data.jerkSavingsPercent > 5 ? `
                         <div class="mt-3 bg-amber-900/30 text-amber-100 p-2 rounded text-xs border border-amber-700/50 flex items-start gap-2">
                              <i data-lucide="zap" width="14" class="text-amber-400 mt-0.5"></i>
@@ -897,10 +1088,10 @@
                 `;
             };
 
-            analysisContent.innerHTML = 
-                createColumn("Infill", analysis.infill, "layers", THEME_COLORS.primary) +
-                createColumn("Wall", analysis.wall, "layers", THEME_COLORS.secondary) +
-                createColumn("Travel", analysis.travel, "layers", THEME_COLORS.chartTravel);
+            analysisContent.innerHTML =
+                createColumn("Infill", analysis.infill, "infill") +
+                createColumn("Wall", analysis.wall, "wall") +
+                createColumn("Travel", analysis.travel, "travel");
         }
 
         // Start
