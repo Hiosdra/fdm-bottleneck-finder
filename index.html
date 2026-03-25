@@ -32,6 +32,7 @@
             /* Background Colors */
             --voron-dark-bg: #23272a;
             --voron-card-bg: #2c2f33;
+            --color-slate-400: #94a3b8;
             --color-slate-600: #475569;
             --color-slate-700: #334155;
 
@@ -41,6 +42,14 @@
             /* State Colors */
             --color-warning: #f59e0b;
             --color-success: #859900;
+
+            /* Badge Colors */
+            --badge-acceleration-bg: rgba(245, 158, 11, 0.2);
+            --badge-acceleration-text: #fcd34d;
+            --badge-flow-bg: rgba(255, 2, 19, 0.2);
+            --badge-flow-text: #fca5a5;
+            --badge-speed-bg: rgba(133, 153, 0, 0.2);
+            --badge-speed-text: #bef264;
         }
 
         /* ===== Base Styles ===== */
@@ -85,7 +94,7 @@
         }
 
         .btn-mode-inactive {
-            color: #94a3b8;
+            color: var(--color-slate-400);
             background-color: transparent;
         }
 
@@ -121,6 +130,7 @@
             appearance: none;
             background: transparent;
             cursor: pointer;
+            accent-color: var(--color-primary);
         }
 
         /* Chrome, Safari, Edge */
@@ -169,11 +179,6 @@
             cursor: pointer;
             background: var(--color-slate-600);
             border-radius: 2px;
-        }
-
-        /* Range input accent color (modern browsers) */
-        input[type=range] {
-            accent-color: var(--color-primary);
         }
 
         /* ===== Animations ===== */
@@ -225,18 +230,18 @@
 
         /* ===== Limit Badge Colors ===== */
         .limit-badge-acceleration {
-            background-color: rgba(245, 158, 11, 0.2);
-            color: #fcd34d;
+            background-color: var(--badge-acceleration-bg);
+            color: var(--badge-acceleration-text);
         }
 
         .limit-badge-flow {
-            background-color: rgba(255, 2, 19, 0.2);
-            color: #fca5a5;
+            background-color: var(--badge-flow-bg);
+            color: var(--badge-flow-text);
         }
 
         .limit-badge-speed {
-            background-color: rgba(133, 153, 0, 0.2);
-            color: #bef264;
+            background-color: var(--badge-speed-bg);
+            color: var(--badge-speed-text);
         }
     </style>
 </head>
@@ -525,12 +530,16 @@
         function setGraphMode(mode) {
             state.graphMode = mode;
             if (mode === 'speed') {
-                btnSpeed.className = "btn-mode btn-mode-active";
-                btnFlow.className = "btn-mode btn-mode-inactive";
+                btnSpeed.classList.add('btn-mode-active');
+                btnSpeed.classList.remove('btn-mode-inactive');
+                btnFlow.classList.add('btn-mode-inactive');
+                btnFlow.classList.remove('btn-mode-active');
                 speedLegend.style.display = 'flex';
             } else {
-                btnFlow.className = "btn-mode btn-mode-active";
-                btnSpeed.className = "btn-mode btn-mode-inactive";
+                btnFlow.classList.add('btn-mode-active');
+                btnFlow.classList.remove('btn-mode-inactive');
+                btnSpeed.classList.add('btn-mode-inactive');
+                btnSpeed.classList.remove('btn-mode-active');
                 speedLegend.style.display = 'none';
             }
             update();
@@ -978,7 +987,13 @@
 
         // --- Deep Analysis HTML Generation ---
         function updateDeepAnalysis(analysis, area) {
-            const createColumn = (title, data, icon, columnType) => {
+            // Get colors from CSS variables for consistency
+            const rootStyles = getComputedStyle(document.documentElement);
+            const colorPrimary = rootStyles.getPropertyValue('--color-primary').trim();
+            const colorSecondary = rootStyles.getPropertyValue('--color-secondary').trim();
+            const colorChartTravel = rootStyles.getPropertyValue('--color-chart-travel').trim();
+
+            const createColumn = (title, data, columnType) => {
                 // Determine badge class based on limiting factor
                 let limitBadgeClass = 'limit-badge-speed';
                 if (data.factor === 'Acceleration') {
@@ -988,9 +1003,9 @@
                 }
 
                 const titleClass = `analysis-title-${columnType}`;
-                const gaugeColor = columnType === 'infill' ? THEME_COLORS.primary :
-                                  columnType === 'wall' ? THEME_COLORS.secondary :
-                                  THEME_COLORS.chartTravel;
+                const gaugeColor = columnType === 'infill' ? colorPrimary :
+                                  columnType === 'wall' ? colorSecondary :
+                                  colorChartTravel;
 
                 const idealPercent = (data.idealTime / Math.max(data.realTime, 0.01)) * 100;
                 const lostPercent = 100 - idealPercent;
@@ -1074,9 +1089,9 @@
             };
 
             analysisContent.innerHTML =
-                createColumn("Infill", analysis.infill, "layers", "infill") +
-                createColumn("Wall", analysis.wall, "layers", "wall") +
-                createColumn("Travel", analysis.travel, "layers", "travel");
+                createColumn("Infill", analysis.infill, "infill") +
+                createColumn("Wall", analysis.wall, "wall") +
+                createColumn("Travel", analysis.travel, "travel");
         }
 
         // Start
